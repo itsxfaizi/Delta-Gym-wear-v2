@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+build/
+coverage/
+*.tsbuildinfo
+.env*
+!.env.example
+
+# Local tooling and generated verification evidence
+.codex/
+.playwright-cli/
+.swc/
+artifacts/
+output/
+test-results/
+graphify-out/
+premium-audit.json
+premium-ui.json
