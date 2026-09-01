@@ -22,6 +22,12 @@ These are explicit source/asset blockers, not invented substitutes. Phase 4A imp
 | [x] | [Delta](https://www.figma.com/design/6zqT0W5qCdhBpVEGEu6G3i/Delta) · Design layer `14` | unavailable — MCP offline | 2026-08-30 | PNG · 1440 × 1606 | `/products/[handle]` | `design-reference/exports/product-detail-desktop-1440.png` | Variant availability/validation, size guide, quantity limits, gallery zoom/keyboard behavior, add-to-cart failure/success, loading/unavailable/error states |
 | [x] | [Delta](https://www.figma.com/design/6zqT0W5qCdhBpVEGEu6G3i/Delta) · Design layer `13` | unavailable — MCP offline | 2026-08-30 | PNG · 1440 × 1024 | Cart drawer | `design-reference/exports/catalog-cart-drawer-desktop-1440.png` | Focus trap/restore, Escape/close, quantity/remove semantics, persistence, unavailable-item handling, live announcements, checkout action (out of scope) |
 
+## Homepage frame exports — 2026-08-31
+
+| Done | Figma source / exact layer | Node ID | Export date | Format / dimensions | Source filename | Local path | Route or component / intended use | Missing interaction details | Authority |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| [x] | `Delta` · Design → `Full` landing composition | `142:4326` | 2026-08-31 | PNG · 1440 × 4700 | `Full.png` | `design-reference/exports/home/home-desktop-1440.png` | Public homepage full-page visual reference | Mobile/tablet variants, hover/focus/active states, per-connection transition timings, and scroll-model behavior are not established by this export | authoritative |
+
 ## Brand mark
 
 | [x] | User-supplied dark Delta logo image (provided in chat on 2026-08-30) | user-provided; no Figma node ID | 2026-08-30 | PNG · 8334 × 4167 | `codex-clipboard-32d71e2f-8906-4a18-86c1-420c3b0bc5ab.png` | `design-reference/assets/delta-logo-dark-user.png` and `public/design-reference/assets/delta-logo-dark-user.png` | User-provided temporary dark header reference; displayed with CSS crop to remove whitespace. Not an SVG/vector export; replace with authoritative Figma SVG when available. | Source contains white padding; no vector metadata or responsive variants. |

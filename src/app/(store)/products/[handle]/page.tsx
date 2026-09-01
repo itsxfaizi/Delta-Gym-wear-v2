@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getPublishedProduct } from "@/features/catalog/queries";
@@ -28,5 +29,10 @@ export default async function ProductPage({ params }: ProductRouteProps) {
     ...(product.rating !== null && product.reviewCount > 0 ? { aggregateRating: { "@type": "AggregateRating", ratingValue: product.rating, reviewCount: product.reviewCount } } : {}),
   };
   const serializedStructuredData = JSON.stringify(structuredData).replaceAll("<", "\\u003c");
-  return <><ProductDetailView product={product} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: serializedStructuredData }} /></>;
+  // Carries the request nonce so the block stays valid under the strict CSP set
+  // in src/middleware.ts. It is not executable, but script-src governs every
+  // <script> element, so relying on the CSP2 'unsafe-inline' fallback would mean
+  // relying on the token that nonce-aware browsers ignore.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  return <><ProductDetailView product={product} /><script type="application/ld+json" nonce={nonce} dangerouslySetInnerHTML={{ __html: serializedStructuredData }} /></>;
 }

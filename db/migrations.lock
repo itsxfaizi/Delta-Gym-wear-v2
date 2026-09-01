@@ -1,0 +1,9 @@
+{
+  "db/migrations/0000_initial_foundation.sql": "3adf1d9466b44ffad1948e48f505c6d5f2be8b196a3976e1832714cd4183fb27",
+  "db/migrations/0001_rls_tenant_isolation.sql": "dae9a61e003a2f2640f267925c6ef492eff634c4345dac653a8578736b888f6b",
+  "db/migrations/0002_audit_media_constraints.sql": "c33a4a1394a56f3e20d61ae86ecb264a9075d203c5f2ecbb121cd9b24b947e07",
+  "db/migrations/meta/0000_snapshot.json": "3990127556f8d0b9d8b333dce962f97c25791b3d7b7000effe6bffee1f0743c9",
+  "db/migrations/meta/0001_snapshot.json": "f362de8f57bd9f6be563633b36d7af7fcdddfde8eb0774b631df4d9128cb6daf",
+  "db/migrations/meta/0002_snapshot.json": "d72716cbcec6d976e642b9e890e1c91d5769359c29a222be87ac656f6dbd9dd4",
+  "db/migrations/meta/_journal.json": "aa748c6b0e0a26ccd22680c8d3fae54bec4b7a8534ffdc71a831f7e3137ad8b8"
+}

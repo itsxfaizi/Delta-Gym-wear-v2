@@ -13,9 +13,12 @@ type CollectionPageProps = {
 };
 
 export async function generateMetadata({ params }: CollectionPageProps): Promise<Metadata> {
-  const { handle } = await params;
-  if (handle !== "all") return { title: "Collection not found" };
-  return { title: "All Products", description: "Browse the complete Delta Gym Wear catalog." };
+  // Ask the resolver instead of re-stating its handle rule. It trims and
+  // lower-cases; a literal `handle !== "all"` here titled /collections/ALL
+  // "Collection not found" while the page below rendered the full grid.
+  const collection = await getPublishedCollection((await params).handle);
+  if (!collection) return { title: "Collection not found" };
+  return { title: collection.title, description: "Browse the complete Delta Gym Wear catalog." };
 }
 
 export default async function CollectionPage({ params, searchParams }: CollectionPageProps) {

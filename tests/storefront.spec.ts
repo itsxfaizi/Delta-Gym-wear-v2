@@ -47,6 +47,10 @@ test("mobile renders the prototype frames as normal flowing sections", async ({ 
   await page.setViewportSize({ width: 320, height: 720 });
   await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
   await page.goto("/");
+  // The server now renders the honest flow state, so every assertion below is
+  // satisfied by the raw HTML. Wait for the controller to attach before reading
+  // it, or the test proves the markup shipped rather than that the client ran.
+  await page.locator('[data-home-timeline][data-timeline-ready="true"]').waitFor();
   await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
   await expect(page.locator("[data-prototype-frame]")).toHaveCount(5);
 });
@@ -154,6 +158,10 @@ test("tampered and unavailable persisted cart lines fail closed", async ({ page 
 test("reduced motion removes meaningful transition duration", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
+  // The server now renders the honest flow state, so every assertion below is
+  // satisfied by the raw HTML. Wait for the controller to attach before reading
+  // it, or the test proves the markup shipped rather than that the client ran.
+  await page.locator('[data-home-timeline][data-timeline-ready="true"]').waitFor();
   await expect(page.locator("[data-home-intro]")).toHaveCount(0);
   await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
   const duration = await page.getByRole("link", { name: "Explore the range" }).evaluate((element) => getComputedStyle(element).transitionDuration);

@@ -30,26 +30,51 @@
   --color-canvas: #ffffff;
   --color-surface: #f3f3f3;
   --color-surface-strong: #e7e7e7;
-  --color-ink: #101114;
-  --color-ink-soft: #4f5053;
+  --color-ink: #131417;
+  --color-ink-soft: #555658;
   --color-inverse: #ffffff;
   --color-accent: #fdb515;
   --color-border: #d9d9d9;
   --color-danger: #8a1c1c;
   --color-focus: #8a5f00;
+  /* Source eyebrow amber (#d79a12) scores 2.22:1 on --color-surface and fails
+     WCAG AA at every size. Approved accessibility deviation: reuse the existing
+     focus amber, which holds the source hue (41.3deg vs 41.4deg) at 5.09:1. */
+  --color-eyebrow: #8a5f00;
   --delta-brand-accent: var(--color-accent);
   --delta-brand-border: var(--color-border);
-  --font-body: "Outfit", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: var(--font-outfit), "Outfit", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Condensed display face. Documented substitution, not the source face. */
+  --font-display: var(--font-oswald), "Oswald", "Barlow Condensed", ui-sans-serif, sans-serif;
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
+  --space-5: 1.25rem;
   --space-6: 1.5rem;
   --space-8: 2rem;
+  --space-10: 2.5rem;
   --space-12: 3rem;
   --space-16: 4rem;
-  --page-gutter: clamp(1rem, 4vw, 4rem);
+  /* 4.45vw resolves to 64.08px at the 1440 source width, where every hard edge
+     in the approved export (CTA, metrics panel, athlete rail, footer) measures 64px. */
+  --page-gutter: clamp(1rem, 4.45vw, 4rem);
   --content-width: 90rem;
+  /* Landing control radii, measured from the approved 1440 export. The catalog
+     and PDP surfaces keep --radius-sm/md/lg at 0 and stay square. */
+  --radius-control: 8px;
+  --radius-media: 12px;
+  --radius-panel: 24px;
+  /* Body-face type scale measured by cap/x-height from the approved export.
+     Headline sizes are derived per section from their measured cap height
+     against the substitute display face, so they are not tokenised here. */
+  --text-sm: 1rem;
+  --text-label: 1.0625rem;
+  --text-md: 1.125rem;
+  --text-body: 1.25rem;
+  --text-lead: 1.5rem;
+  --text-metric: 4.625rem;
+  --leading-body: 1.28;
   --duration-control: 160ms;
   --duration-panel: 240ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
@@ -88,12 +113,12 @@ p { text-wrap: pretty; }
 .skip-link:focus { transform: translateY(0); }
 
 .site-header { position: relative; z-index: var(--z-sticky); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-block-size: 4.875rem; padding-inline: var(--page-gutter); border-block-end: 1px solid var(--color-border); background: rgb(255 255 255 / 0.98); }
-.site-header nav { display: flex; align-items: center; gap: clamp(1rem, 2.7vw, 2.75rem); justify-self: start; }
-.site-header nav a { min-block-size: 44px; display: inline-flex; align-items: center; font-size: 0.75rem; font-weight: 650; letter-spacing: 0.1em; text-decoration: none; text-transform: uppercase; }
+.site-header nav { display: flex; align-items: center; gap: clamp(1rem, 3.75vw, 3.375rem); justify-self: start; }
+.site-header nav a { min-block-size: 44px; display: inline-flex; align-items: center; font-size: var(--text-sm); font-weight: 650; letter-spacing: 0.02em; text-decoration: none; text-transform: uppercase; }
 .site-header nav a[aria-current="page"] { text-decoration: underline; text-decoration-color: var(--color-accent); text-decoration-thickness: 0.2rem; text-underline-offset: 0.5rem; }
 .brand { grid-column: 2; display: grid; place-items: center; min-block-size: 44px; }
-.brand img { display: block; inline-size: 9.2rem; block-size: auto; }
-.header-actions { display: flex; align-items: center; justify-self: end; gap: var(--space-1); }
+.brand img { display: block; inline-size: 7rem; block-size: auto; }
+.header-actions { display: flex; align-items: center; justify-self: end; gap: var(--space-6); }
 .icon-button { display: grid; place-items: center; inline-size: 44px; block-size: 44px; padding: 0.625rem; border: 0; background: transparent; color: inherit; text-decoration: none; transition: background-color var(--duration-control) var(--ease-out); }
 .icon-button:hover { background: var(--color-surface); }
 .icon-button img { inline-size: 1.5rem; block-size: 1.5rem; }
@@ -103,56 +128,78 @@ p { text-wrap: pretty; }
 
 .site-header--home { position: absolute; inset-block-start: 0; inset-inline: 0; border: 0; background: transparent; color: var(--color-inverse); }
 .site-header--home .icon-button:hover { background: rgb(255 255 255 / 0.14); }
+.site-header--home nav a { color: #e8e8e8; }
 
 .home-page { background: var(--color-ink); color: var(--color-inverse); overflow-x: clip; }
 .home-intro { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; pointer-events: none; background: var(--color-ink); }
 .home-intro-mark { inline-size: min(23.33vw, 21rem); block-size: auto; transform-origin: center; animation: home-intro-mark-arrive 970ms cubic-bezier(0.16, 1, 0.3, 1) both; }
 .landing-hero { position: relative; display: grid; align-content: end; min-block-size: min(58rem, 100svh); padding: clamp(8rem, 13vw, 12rem) var(--page-gutter) clamp(3rem, 7vw, 6rem); overflow: hidden; isolation: isolate; }
-.landing-hero::after { position: absolute; z-index: -1; inset: 0; background: rgb(6 6 7 / 0.32); content: ""; }
+/* Measured against the source poster mapped through object-fit: cover. The scrim
+   is pure black and horizontal only; a y60-140 band samples the same curve as y600-700. */
+.landing-hero::after { position: absolute; z-index: -1; inset: 0; background: linear-gradient(to right, rgb(0 0 0 / 0.82) 0%, rgb(0 0 0 / 0.51) 25%, rgb(0 0 0 / 0.24) 50%, rgb(0 0 0 / 0.12) 75%, rgb(0 0 0 / 0) 100%); content: ""; }
 .landing-hero-media, .landing-hero-media img, .landing-hero-video { position: absolute; inset: 0; inline-size: 100%; block-size: 100%; }
 .landing-hero-media { z-index: -2; background: var(--color-ink); }
 .landing-hero-media img, .landing-hero-video { object-fit: cover; object-position: center; }
 .landing-hero-video { opacity: 1; }
 .landing-hero-copy { position: relative; max-inline-size: 49rem; }
-.landing-hero-copy h1, .landing-engineered h2, .landing-philosophy h2, .landing-tests h2, .landing-newsletter h2 { margin: 0; font-weight: 800; letter-spacing: -0.035em; line-height: 0.94; text-transform: uppercase; }
+/* Condensed display face; Oswald tops out at 700, so the previous 800 would be
+   synthesised. Tracking is normal: the source's advance is carried by the face,
+   not by negative letter-spacing. */
+.landing-hero-copy h1, .landing-engineered h2, .landing-philosophy h2, .landing-tests h2, .landing-newsletter h2, .landing-philosophy-copy h2, .prototype-frame--tests h2 { margin: 0; font-family: var(--font-display); font-weight: 600; letter-spacing: normal; line-height: 0.94; text-transform: uppercase; text-wrap: wrap; }
 .landing-hero-copy h1 { max-inline-size: 12ch; font-size: clamp(3rem, 6.4vw, 6rem); }
 .landing-hero-copy em, .landing-philosophy em, .landing-tests em { color: var(--color-accent); font-style: normal; }
-.landing-hero-copy p { max-inline-size: 38ch; margin: var(--space-4) 0 var(--space-6); font-size: clamp(1rem, 1.6vw, 1.25rem); }
-.landing-cta { min-block-size: 48px; display: inline-flex; align-items: center; justify-content: center; padding-inline: clamp(1.5rem, 4vw, 4rem); background: var(--color-accent); color: var(--color-ink); font-size: 0.75rem; font-weight: 750; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase; transition: background-color var(--duration-control) var(--ease-out), transform var(--duration-control) var(--ease-out); }
+.landing-hero-copy p { max-inline-size: 38ch; margin: var(--space-4) 0 var(--space-6); color: #e8e8e8; font-size: clamp(1rem, 1.7vw, var(--text-lead)); }
+.landing-cta { min-block-size: 52px; display: inline-flex; align-items: center; justify-content: center; padding-inline: clamp(1.5rem, 4vw, 4rem); border-radius: var(--radius-control); background: var(--color-accent); color: var(--color-ink); font-size: var(--text-label); font-weight: 750; letter-spacing: 0.04em; text-decoration: none; text-transform: uppercase; transition: background-color var(--duration-control) var(--ease-out), transform var(--duration-control) var(--ease-out); }
 .landing-cta:hover, .landing-cta:focus-visible { background: #ffc433; transform: translateY(-0.125rem); }
-.landing-proof { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); max-inline-size: 78rem; margin: clamp(4rem, 10vw, 9rem) 0 0; padding: clamp(1.25rem, 2.5vw, 2rem) clamp(1rem, 4vw, 4rem); border: 1px solid rgb(255 255 255 / 0.45); background: rgb(6 6 7 / 0.7); }
-.landing-proof div { display: grid; gap: var(--space-1); text-align: center; }
-.landing-proof dt { font-size: clamp(2.25rem, 4vw, 4.5rem); font-weight: 750; line-height: 1; }
-.landing-proof dd { margin: 0; color: #e0e0e0; font-size: clamp(0.75rem, 1.2vw, 1rem); }
+/* Hero metrics panel. Box, radius, border, fill and column centres are measured
+   from the approved 1440 export; the border reads as an opaque #8e8e8f across
+   backdrops from L=33 to L=157, so it is not a translucent white. */
+.landing-proof { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-6); max-inline-size: none; margin: clamp(3rem, 12.87vh, 121px) 0 0; padding: clamp(1.5rem, 3vw, 2.8125rem) 0 clamp(1rem, 2vw, 1.8125rem); border: 1px solid #8e8e8f; border-radius: var(--radius-panel); background: rgb(0 0 0 / 0.24); }
+.landing-proof div { display: grid; gap: clamp(0.5rem, 1.2vw, 1.125rem); text-align: center; }
+.landing-proof dt { font-size: clamp(2.25rem, 5.15vw, var(--text-metric)); font-weight: 750; line-height: 1; }
+.landing-proof dd { margin: 0; color: #d2d2d2; font-size: clamp(0.8125rem, 1.4vw, var(--text-body)); }
 .landing-engineered { padding: clamp(5rem, 11vw, 10rem) var(--page-gutter) clamp(4rem, 8vw, 7rem); background: var(--color-ink); text-align: center; }
 .landing-engineered header { max-inline-size: 64rem; margin-inline: auto; }
 .landing-engineered h2, .landing-tests h2 { font-size: clamp(2.5rem, 5vw, 5.25rem); }
-.landing-engineered header p, .landing-tests > div > p { max-inline-size: 62ch; margin: var(--space-4) auto 0; color: #d7d7d9; }
-.landing-athlete-strip { display: grid; grid-template-columns: 0.68fr 1fr 1.42fr 1fr 0.68fr; align-items: center; gap: clamp(0.5rem, 1.4vw, 1.5rem); max-inline-size: 82rem; margin: clamp(3rem, 6vw, 5.5rem) auto var(--space-8); }
-.landing-athlete-strip img { inline-size: 100%; block-size: clamp(14rem, 26vw, 25rem); object-fit: cover; }
-.landing-athlete-strip img:nth-child(2), .landing-athlete-strip img:nth-child(4) { block-size: clamp(16rem, 30vw, 28rem); }
-.landing-athlete-strip img:nth-child(3) { block-size: clamp(18rem, 34vw, 32rem); }
-.landing-cta-pair { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-4); }
-.landing-cta-pair .landing-cta { min-inline-size: min(17rem, 100%); }
+.landing-engineered header p { max-inline-size: 62ch; margin: var(--space-4) auto 0; color: #bbbbbb; font-size: clamp(1rem, 1.4vw, var(--text-body)); line-height: var(--leading-body); }
+/* Measured 196/252/320/252/196 at 24px gaps in a 1312px rail. The apparent "arc"
+   is three widths sharing one centre line, not five bespoke heights. */
+.landing-athlete-strip { display: grid; grid-template-columns: 49fr 63fr 80fr 63fr 49fr; align-items: center; gap: var(--space-6); max-inline-size: 82rem; margin: clamp(3rem, 6vw, 5.5rem) auto var(--space-8); }
+/* Each card is its own 13:18 clip box; the photo inside carries the crop the
+   Figma image fill applied (--crop-w = painted width as a share of the card,
+   --crop-y = the image's top edge as a share of the card height). object-fit
+   cannot express this: it pins the zoom to whatever "cover" happens to be. */
+.landing-athlete-strip > span { position: relative; display: block; aspect-ratio: 13 / 18; overflow: hidden; border-radius: var(--radius-control); }
+.landing-athlete-strip img { position: absolute; inset-block-start: var(--crop-y, 0%); inset-inline-start: calc((100% - var(--crop-w, 100%)) / 2); inline-size: var(--crop-w, 100%); max-inline-size: none; block-size: auto; }
+.landing-cta-pair { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-6); }
+.landing-cta-pair .landing-cta { min-inline-size: min(16.5625rem, 100%); }
 .landing-philosophy { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.9fr); align-items: center; gap: clamp(3rem, 11vw, 12rem); padding: clamp(5rem, 10vw, 10rem) var(--page-gutter); background: var(--color-canvas); color: var(--color-ink); }
 .landing-philosophy > img { inline-size: min(100%, 38rem); justify-self: center; block-size: auto; }
 .landing-philosophy > div { max-inline-size: 40rem; }
-.landing-philosophy > div > p:first-child, .landing-newsletter > p:first-child { margin: 0 0 var(--space-3); color: #b17b00; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
+.landing-philosophy > div > p:first-child, .landing-newsletter > p:first-child { margin: 0 0 var(--space-3); color: var(--color-eyebrow); font-size: clamp(1rem, 1.7vw, var(--text-lead)); font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
 .landing-philosophy h2 { font-size: clamp(2.75rem, 5.2vw, 5.5rem); }
 .landing-philosophy > div > p:last-child { max-inline-size: 41ch; margin: var(--space-6) 0 0; color: var(--color-ink-soft); font-size: 1.1rem; }
 .landing-tests { position: relative; min-block-size: min(56rem, 76vw); display: grid; align-items: end; padding: clamp(5rem, 10vw, 10rem) var(--page-gutter); overflow: hidden; background: var(--color-ink); }
 .landing-tests > div { position: relative; z-index: 1; }
-.landing-tests h3 { max-inline-size: 11ch; margin: clamp(4rem, 9vw, 10rem) 0 0; font-size: clamp(3.5rem, 8.7vw, 9rem); font-weight: 800; letter-spacing: -0.045em; line-height: 0.88; text-align: left; text-transform: uppercase; }
-.landing-graphic { position: absolute; inset-inline-end: clamp(2rem, 13vw, 16rem); inset-block-end: clamp(3rem, 12vw, 12rem); inline-size: clamp(7rem, 14vw, 15rem); aspect-ratio: 1; margin: 0; border: 1px solid rgb(255 255 255 / 0.18); background: rgb(253 181 21 / 0.12); }
-.landing-graphic::before, .landing-graphic::after { position: absolute; border: 1px solid rgb(255 255 255 / 0.1); content: ""; }
-.landing-graphic::before { inset: -26% 45% 45% -26%; }
-.landing-graphic::after { inset: 45% -26% -26% 45%; }
-.landing-newsletter { display: grid; justify-items: center; padding: clamp(5rem, 10vw, 10rem) var(--page-gutter); background: var(--color-canvas); color: var(--color-ink); text-align: center; }
+.landing-tests > div > p:not(.landing-tests-statement) { max-inline-size: 62ch; margin: var(--space-4) 0 0; color: #bbbbbb; font-size: clamp(1rem, 1.7vw, var(--text-lead)); }
+/* Two groups of three overlapping squares, each inset 80px from its corner.
+   Sizes and the 28.7%/30% step are measured; only the middle square is filled. */
+.landing-tests-blocks { position: absolute; z-index: 0; inline-size: var(--sq); block-size: var(--sq); }
+.landing-tests-blocks i { position: absolute; inline-size: 100%; block-size: 100%; border: 1px solid rgb(255 255 255 / 0.13); border-radius: var(--radius-control); }
+.landing-tests-blocks i:nth-child(2) { inset-inline-start: 28.7%; inset-block-start: 30%; border-color: #fedb8f; background-image: linear-gradient(135deg, rgb(253 181 21 / 0) 0%, rgb(253 181 21 / 0.2) 79%); }
+.landing-tests-blocks i:nth-child(3) { inset-inline-start: 57.4%; inset-block-start: 60%; }
+.landing-tests-blocks--start { --sq: 127px; inset-inline-start: 5rem; inset-block-start: 5rem; }
+/* The stepped children overflow the anchor square, so the end group is pulled
+   back by exactly one step to land its last square on the same 80px inset. */
+.landing-tests-blocks--end { --sq: 150px; inset-inline-end: calc(5rem + var(--sq) * 0.574); inset-block-end: calc(5rem + var(--sq) * 0.6); }
+.landing-newsletter { display: grid; justify-items: center; padding: clamp(5rem, 10vw, 10rem) var(--page-gutter); background: var(--color-surface); color: var(--color-ink); text-align: center; }
 .landing-newsletter h2 { font-size: clamp(3rem, 6vw, 6rem); }
-.landing-newsletter > p:not(:first-child) { max-inline-size: 52ch; margin: var(--space-4) 0 var(--space-8); color: var(--color-ink-soft); }
-.landing-newsletter-static { inline-size: min(100%, 42rem); min-block-size: 52px; display: grid; grid-template-columns: 1fr auto; background: var(--color-ink); color: var(--color-inverse); text-align: start; }
-.landing-newsletter-static span { display: inline-flex; align-items: center; min-block-size: 52px; padding-inline: var(--space-6); }
-.landing-newsletter-static span:last-child { justify-content: center; min-inline-size: 10rem; background: var(--color-accent); color: var(--color-ink); font-size: 0.75rem; font-weight: 750; text-transform: uppercase; }
+.landing-newsletter > p:not(:first-child) { max-inline-size: min(100%, 49rem); margin: var(--space-4) 0 var(--space-8); color: var(--color-ink-soft); font-size: clamp(1rem, 1.4vw, var(--text-body)); }
+/* 708px combo, 508 input + 200 button, 8px radius on the outer corners only:
+   overflow: hidden rounds the outside and keeps the inner seam dead straight. */
+.landing-newsletter-static { inline-size: min(100%, 44.25rem); min-block-size: 52px; display: grid; grid-template-columns: 1fr 200px; border-radius: var(--radius-control); overflow: hidden; background: var(--color-ink); color: var(--color-inverse); }
+.landing-newsletter-static span { display: inline-flex; align-items: center; justify-content: center; min-block-size: 52px; padding-inline: var(--space-6); font-size: clamp(1rem, 1.4vw, var(--text-body)); }
+.landing-newsletter-static span:last-child { background: var(--color-accent); color: var(--color-ink); font-size: var(--text-label); font-weight: 750; text-transform: uppercase; }
 .landing-footer-scene { display: grid; background: var(--color-ink); }
 .landing-footer-scene .site-footer { min-block-size: 100%; }
 
@@ -274,15 +321,22 @@ p { text-wrap: pretty; }
 .site-footer { display: grid; grid-template-columns: minmax(16rem, 1.7fr) repeat(3, minmax(9rem, 1fr)); gap: clamp(2rem, 6vw, 7rem); padding: clamp(4rem, 8vw, 7rem) var(--page-gutter) var(--space-8); background: var(--color-ink); color: var(--color-inverse); }
 .footer-identity { display: grid; align-content: start; justify-items: start; gap: var(--space-4); }
 .footer-brand { display: inline-flex; align-items: center; min-block-size: 44px; }
+/* The export shows a mark-only lockup (bolt + triangle, 61x64). No such export
+   exists locally and its ratio does not match any subset of delta-logo.svg, so
+   the full wordmark is retained. Recorded as a source gap in docs/figma-audit.md. */
 .footer-brand img { inline-size: 9.2rem; block-size: auto; }
-.footer-identity > p { max-inline-size: 31ch; margin: 0; color: #d0d0d2; }
-.footer-identity address { display: grid; gap: var(--space-2); font-style: normal; }
-.footer-identity address a, .site-footer nav a { color: #d0d0d2; font-size: 0.875rem; text-decoration: none; }
+.footer-identity > p { max-inline-size: 31ch; margin: 0; color: #a5a5a5; }
+.footer-identity address { display: grid; gap: var(--space-3); font-style: normal; }
+.footer-identity address a { color: #a5a5a5; font-size: inherit; text-decoration: none; }
+.site-footer nav a { color: #8f8f8f; font-size: inherit; text-decoration: none; }
 .footer-identity address a:hover, .site-footer nav a:hover { color: var(--color-accent); text-decoration: underline; text-underline-offset: 0.25rem; }
-.site-footer nav { display: grid; align-content: start; gap: var(--space-3); }
-.site-footer nav strong { margin-block-end: var(--space-2); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; }
-.site-footer nav span { color: #d0d0d2; font-size: 0.875rem; }
-.footer-copyright { grid-column: 1 / -1; justify-self: end; margin: var(--space-6) 0 0; color: #d0d0d2; font-size: 0.8125rem; }
+.site-footer nav { display: grid; align-content: start; gap: var(--space-5); }
+.site-footer nav strong { margin-block-end: var(--space-3); font-size: var(--text-sm); letter-spacing: 0.08em; text-transform: uppercase; }
+.site-footer nav span { color: #8f8f8f; font-size: inherit; }
+/* Watermark: measured 128px cap; 183px x Outfit's 0.70 cap ratio. Only the
+   landing footer shows it in the approved export, so it is off by default. */
+.footer-watermark { display: none; grid-column: 1; justify-self: start; align-self: end; color: #1f2023; font-family: var(--font-display); font-size: clamp(4rem, 10.97vw, 158px); font-weight: 600; line-height: 0.78; text-transform: uppercase; user-select: none; }
+.footer-copyright { grid-column: 1 / -1; justify-self: end; margin: var(--space-6) 0 0; color: #a5a5a5; font-size: var(--text-sm); }
 
 .route-state { min-block-size: 62svh; display: grid; align-content: center; justify-items: start; gap: var(--space-4); }
 .route-state p { max-inline-size: 48ch; margin: 0; color: var(--color-ink-soft); }
@@ -290,6 +344,10 @@ p { text-wrap: pretty; }
 .catalog-skeleton-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); margin-block-start: var(--space-12); }
 .catalog-skeleton-grid span { aspect-ratio: 638 / 720; background: var(--color-surface); animation: pulse 1.2s ease-in-out infinite alternate; }
 @keyframes pulse { to { opacity: 0.55; } }
+/* The opening mark referenced this keyframe but it was never defined, so the
+   intro settle never ran. Transform/opacity only; the intro is skipped entirely
+   under prefers-reduced-motion. Timing is an approximation, not a Figma value. */
+@keyframes home-intro-mark-arrive { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 64rem) {
   .catalog-layout { grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-8); }
@@ -319,16 +377,15 @@ p { text-wrap: pretty; }
   .landing-proof { gap: var(--space-3); }
   .landing-proof dt { font-size: clamp(1.8rem, 8vw, 3rem); }
   .landing-engineered { padding-inline: var(--space-3); }
-  .landing-athlete-strip { gap: var(--space-2); }
-  .landing-athlete-strip img { block-size: 15rem; }
-  .landing-athlete-strip img:nth-child(2), .landing-athlete-strip img:nth-child(4) { block-size: 17rem; }
-  .landing-athlete-strip img:nth-child(3) { block-size: 19rem; }
+  /* Derived responsive rule: no source frame exists below 1440. The measured
+     ratio grid collapses to unreadable 41-67px cards at 320, so the rail becomes
+     a snap scroller that keeps the source order and the centre-card emphasis. */
+  .landing-athlete-strip { grid-template-columns: repeat(5, 42vw); gap: var(--space-3); margin-inline: calc(var(--page-gutter) * -1); padding-inline: var(--page-gutter); overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; }
+  .landing-athlete-strip > span { scroll-snap-align: center; }
   .landing-philosophy { grid-template-columns: 1fr; padding-inline: var(--space-4); }
   .landing-philosophy > div { justify-self: start; }
   .landing-tests { min-block-size: 42rem; }
-  .landing-tests h3 { margin-block-start: 5rem; font-size: clamp(2.4rem, 12vw, 4rem); letter-spacing: -0.035em; }
   .landing-newsletter-static { grid-template-columns: 1fr; }
-  .landing-newsletter-static span { justify-content: center; }
   .home-collection > header, .catalog-title-row, .cart-page-heading { align-items: flex-start; flex-direction: column; }
   .catalog-layout { grid-template-columns: 1fr; }
   .catalog-sidebar > h2 { font-size: 1.25rem; }
@@ -351,8 +408,7 @@ p { text-wrap: pretty; }
   .landing-proof { grid-template-columns: 1fr; margin-block-start: var(--space-12); }
   .landing-proof div { grid-template-columns: 4.5rem 1fr; align-items: center; text-align: start; }
   .landing-proof dd { font-size: 0.875rem; }
-  .landing-athlete-strip { grid-template-columns: repeat(5, minmax(0, 1fr)); margin-inline: calc(var(--space-3) * -1); }
-  .landing-athlete-strip img, .landing-athlete-strip img:nth-child(2), .landing-athlete-strip img:nth-child(3), .landing-athlete-strip img:nth-child(4) { block-size: 15rem; }
+  .landing-athlete-strip { grid-template-columns: repeat(5, 58vw); }
   .landing-cta-pair { display: grid; }
   .landing-cta-pair .landing-cta { inline-size: 100%; }
   .cart-drawer { padding: var(--space-4); }
@@ -364,6 +420,7 @@ p { text-wrap: pretty; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
   .motion-reveal, .motion-reveal.is-visible { transform: none !important; transition: none !important; }
+  [data-motion] { opacity: 1 !important; transform: none !important; transition: none !important; }
   .landing-hero-video { display: none; }
   .home-intro { display: none; }
 }
@@ -376,74 +433,126 @@ p { text-wrap: pretty; }
 .prototype-frame[data-frame-state="settled"] { pointer-events: auto; }
 .home-intro { transition: none; }
 
+/* Named landing motion intents. Every intent is defined exactly once here and
+   referenced by name from the components (homeMotion() in motion.tsx). Each one
+   animates transform and opacity only and rests at opacity 1 / transform none.
+   Durations, offsets and the 55ms stagger are the project's existing reveal
+   values (.motion-reveal--editorial / --cards), not new invented timings.
+   The entry state is keyed off the frame's own data-frame-state, so under
+   prefers-reduced-motion - where every frame is permanently settled - the
+   resting state is what renders, with no transition. */
+[data-motion] { opacity: 1; transform: none; transition: opacity var(--motion-duration) var(--ease-out), transform var(--motion-duration) var(--ease-out); transition-delay: calc(min(var(--motion-index, 0), 5) * var(--motion-stagger, 0ms)); }
+.prototype-frame:not([data-frame-state="settled"]) [data-motion] { opacity: 0; transform: translate3d(var(--motion-x, 0), var(--motion-y, 0), 0); transition: none; }
+[data-motion="heroEntrance"] { --motion-duration: 650ms; --motion-y: 1.5rem; --motion-stagger: 55ms; }
+[data-motion="sectionReveal"] { --motion-duration: 650ms; --motion-y: 1.5rem; --motion-stagger: 55ms; }
+[data-motion="athleteRailReveal"] { --motion-duration: 560ms; --motion-y: 1.25rem; --motion-stagger: 55ms; }
+[data-motion="philosophyCardEnter"] { --motion-duration: 650ms; --motion-x: -1.5rem; }
+[data-motion="testsReveal"] { --motion-duration: 650ms; --motion-y: 1.5rem; --motion-stagger: 55ms; }
+[data-motion="footerReveal"] { --motion-duration: 560ms; --motion-y: 1.25rem; --motion-stagger: 55ms; }
+
 /* Hero / Engineered */
-.prototype-frame--hero { align-content: center; padding-block: clamp(6rem, 11vh, 9rem) clamp(3rem, 7vw, 6rem); }
+.prototype-frame--hero { align-content: end; padding-block: clamp(6rem, 11vh, 9rem) var(--space-6); }
 .prototype-frame--hero .landing-hero-copy { max-inline-size: 72rem; }
-.prototype-frame--hero .landing-hero-copy h1 { max-inline-size: 20ch; font-size: clamp(3.5rem, 5.2vw, 5.25rem); }
+/* Explicit px pitch: the measured 110px baseline advance is independent of the
+   unresolved headline font-size, so a ratio would drift once the face is supplied. */
+.prototype-frame--hero .landing-hero-copy h1 { max-inline-size: 48rem; font-size: clamp(3rem, 5.56vw, 80px); line-height: clamp(3.4rem, 7.64vw, 110px); }
 .prototype-frame--hero .landing-hero-copy p { max-inline-size: 60ch; }
-.prototype-frame--hero .landing-cta { min-inline-size: 23.5rem; }
-.prototype-frame--engineered { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; padding: clamp(6rem, 10vh, 8rem) var(--page-gutter) clamp(2.5rem, 5vh, 4.5rem); }
+.prototype-frame--hero .landing-cta { min-inline-size: 23.25rem; }
+.prototype-frame--engineered { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; align-items: center; padding: clamp(6rem, 15.2vh, 9.5rem) var(--page-gutter) clamp(2.5rem, 7.8vh, 5rem); }
 .prototype-frame--engineered header { max-inline-size: 74rem; }
-.prototype-frame--engineered h2 { font-size: clamp(2.75rem, 5.2vw, 5.45rem); }
-.prototype-frame--engineered .landing-athlete-strip { inline-size: min(100%, 88rem); max-inline-size: none; align-self: center; margin: clamp(2rem, 4vh, 4rem) auto; }
-.prototype-frame--engineered .landing-athlete-strip img { block-size: clamp(15rem, 33vh, 26rem); }
-.prototype-frame--engineered .landing-athlete-strip img:nth-child(2), .prototype-frame--engineered .landing-athlete-strip img:nth-child(4) { block-size: clamp(17rem, 37vh, 29rem); }
-.prototype-frame--engineered .landing-athlete-strip img:nth-child(3) { block-size: clamp(20rem, 44vh, 34rem); }
+.prototype-frame--engineered header p { max-inline-size: 66rem; margin-block-start: 26px; margin-inline: auto; }
+.prototype-frame--engineered h2 { font-size: clamp(2.5rem, 5.28vw, 76px); letter-spacing: -0.015em; }
+/* 82rem = the measured 1312px rail; --space-10 = the measured 40px rail-to-CTA gap. */
+.prototype-frame--engineered .landing-athlete-strip { inline-size: min(100%, 82rem); max-inline-size: none; align-self: center; margin: calc(var(--space-10) - 5px) auto calc(var(--space-10) + 5px); }
 
 /* Philosophy: exact local crops only. The Figma orbit vector is intentionally
    absent until its original export is supplied. */
-.prototype-frame--philosophy { display: grid; grid-template-columns: minmax(18rem, 0.98fr) minmax(22rem, 0.92fr); align-items: center; gap: clamp(3rem, 10vw, 11rem); padding: clamp(4rem, 8vh, 7rem) var(--page-gutter); }
-.landing-philosophy-media { position: relative; inline-size: min(100%, 36rem); min-block-size: min(70vh, 42rem); justify-self: center; }
-.landing-philosophy-media > img { display: block; block-size: auto; }
-.landing-philosophy-primary { position: relative; z-index: 1; inline-size: min(88%, 31rem); margin-inline-start: 0; border-radius: 0; }
-.landing-philosophy-secondary { position: absolute; z-index: 0; inset-block-start: 8%; inset-inline-end: 2%; inline-size: min(52%, 18rem); block-size: auto; object-fit: cover; transform: rotate(7deg); transform-origin: center; }
+/* Base #f3f3f3 with two warm radial glows; centres and peak colour are measured,
+   the ellipse radii are fitted to the sampled zero-crossings. */
+.prototype-frame--philosophy { display: grid; grid-template-columns: minmax(18rem, 0.98fr) minmax(22rem, 0.92fr); align-items: center; gap: clamp(3rem, 10vw, 11rem); padding: clamp(4rem, 8vh, 7rem) var(--page-gutter); background: radial-gradient(50rem 39rem at 0% 29%, #f5eddb 0%, rgb(245 237 219 / 0) 100%), radial-gradient(50rem 44rem at 78% 77%, #f5eddb 0%, rgb(245 237 219 / 0) 100%), var(--color-surface); }
+/* Two identical 458x636 cards on one centre; the rear is offset +50px on x only
+   and rotated 8deg. Both carry the measured 12px media radius. */
+.landing-philosophy-media { position: relative; inline-size: min(100%, 28.625rem); aspect-ratio: 458 / 636; justify-self: start; }
+.landing-philosophy-media > img { position: absolute; inset: 0; display: block; inline-size: 100%; block-size: 100%; object-fit: cover; border-radius: var(--radius-media); }
+.landing-philosophy-primary { z-index: 1; }
+.landing-philosophy-secondary { z-index: 0; transform: translateX(50px) rotate(8deg); transform-origin: center; }
 .landing-philosophy-copy { max-inline-size: 38rem; }
-.landing-philosophy-copy > p:first-child, .landing-newsletter > p:first-child { margin: 0 0 var(--space-3); color: #b17b00; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
-.landing-philosophy-copy h2 { margin: 0; font-size: clamp(2.75rem, 5.2vw, 5.5rem); font-weight: 800; letter-spacing: -0.035em; line-height: 0.94; text-transform: uppercase; }
-.landing-philosophy-copy h2 em, .landing-tests-statement em { color: var(--color-accent); font-style: normal; }
-.landing-philosophy-copy > p:last-child { max-inline-size: 41ch; margin: var(--space-6) 0 0; color: var(--color-ink-soft); font-size: 1.1rem; }
+.landing-philosophy-copy > p:first-child { margin: 0 0 var(--space-3); color: var(--color-eyebrow); font-size: clamp(1rem, 1.7vw, var(--text-lead)); font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
+.landing-philosophy-copy h2 { margin: 0; font-family: var(--font-display); font-size: clamp(2.25rem, 4.51vw, 65px); font-weight: 600; letter-spacing: normal; line-height: clamp(2.6rem, 5.56vw, 80px); text-transform: uppercase; }
+.landing-philosophy-copy h2 em { color: var(--color-accent); font-style: normal; }
+.landing-philosophy-copy > p:last-child { max-inline-size: 33rem; margin: var(--space-6) 0 0; color: var(--color-ink-soft); font-size: clamp(1rem, 1.4vw, var(--text-body)); line-height: var(--leading-body); }
 
 /* Three tests */
-.prototype-frame--tests { display: grid; align-content: center; padding: clamp(4rem, 10vh, 8rem) var(--page-gutter); background: var(--color-ink); }
+/* Hairline concentric arcs in the top-right corner: density and value are
+   measured; the exact radii are a fitted approximation (see figma-audit). */
+.prototype-frame--tests { display: grid; align-content: end; padding: 4rem 5rem clamp(4rem, 21.2vh, 12.5rem); background-color: var(--color-ink); background-image: repeating-radial-gradient(circle at 100% 0, transparent 0 54px, rgb(255 255 255 / 0.09) 54px 55px); background-repeat: no-repeat; background-size: 44rem 30rem; background-position: right -3.75rem top -1.875rem; }
 .prototype-frame--tests > div { max-inline-size: 88rem; }
-.prototype-frame--tests h2 { margin: 0; font-size: clamp(2.75rem, 5.35vw, 5.6rem); font-weight: 800; letter-spacing: -0.04em; line-height: 0.94; text-transform: uppercase; }
-.prototype-frame--tests > div > p:not(.landing-tests-statement) { max-inline-size: 62ch; margin: var(--space-5, 1.25rem) 0 0; color: #d7d7d9; font-size: clamp(1rem, 1.5vw, 1.25rem); }
-.landing-tests-statement { max-inline-size: 12ch; margin: clamp(3.5rem, 10vh, 7rem) 0 0; color: var(--color-inverse); font-size: clamp(3.5rem, 8vw, 8.25rem); font-weight: 800; letter-spacing: -0.05em; line-height: 0.86; text-transform: uppercase; }
+.prototype-frame--tests h2 { margin: 0; font-family: var(--font-display); font-size: clamp(2.25rem, 5.28vw, 76px); font-weight: 600; letter-spacing: -0.0165em; line-height: 0.94; text-transform: uppercase; }
+.prototype-frame--tests > div > p:not(.landing-tests-statement) { max-inline-size: 62ch; margin: clamp(1.25rem, 6.06vh, 3.75rem) 0 0; color: #bbbbbb; font-size: clamp(1rem, 1.7vw, var(--text-lead)); }
+/* One continuous white-to-amber ramp across the whole two-line block: both lines
+   return identical RGB at identical x in the export, so no word is coloured alone. */
+.landing-tests-statement { max-inline-size: 9.43em; margin: clamp(1.5rem, 3.62vh, 2.4rem) 0 0; background-image: linear-gradient(90deg, #ffffff 0%, #d89c12 100%); -webkit-background-clip: text; background-clip: text; color: transparent; -webkit-text-fill-color: transparent; font-size: clamp(3.25rem, 5.476vw, 4.93rem); font-weight: 800; letter-spacing: normal; line-height: clamp(3.2rem, 7.01vw, 101px); text-transform: uppercase; }
 
 /* The final Figma frame composes newsletter and footer in a single viewport. */
-.prototype-frame--newsletter-footer { display: grid; grid-template-rows: minmax(0, 0.58fr) minmax(0, 0.42fr); background: var(--color-ink); color: var(--color-inverse); }
+/* Measured split inside the final 940px frame: 435px light / 505px dark. */
+.prototype-frame--newsletter-footer { display: grid; grid-template-rows: minmax(0, 435fr) minmax(0, 505fr); background: var(--color-ink); color: var(--color-inverse); }
 .prototype-frame--newsletter-footer .landing-newsletter { min-block-size: 0; align-content: center; padding: clamp(2rem, 5vh, 4rem) var(--page-gutter); }
-.prototype-frame--newsletter-footer .landing-newsletter h2 { font-size: clamp(2.5rem, 5.5vw, 5.7rem); }
-.prototype-frame--newsletter-footer .landing-newsletter > p:not(:first-child) { margin-block-end: clamp(1.5rem, 4vh, 3rem); }
+.prototype-frame--newsletter-footer .landing-newsletter h2 { font-size: clamp(2.25rem, 5.14vw, 74px); }
+.prototype-frame--newsletter-footer .landing-newsletter > p:first-child { margin-block-end: clamp(0.75rem, 2.45vh, 1.4375rem); font-size: clamp(1rem, 1.541vw, 1.387rem); }
+.prototype-frame--newsletter-footer .landing-newsletter > p:not(:first-child) { margin-block-start: clamp(1rem, 2.55vh, 1.5rem); }
+.prototype-frame--newsletter-footer .landing-newsletter > p:not(:first-child) { margin-block-end: clamp(1.5rem, 4.53vh, 3.375rem); }
 .prototype-frame--newsletter-footer .landing-newsletter-static { min-block-size: 3.25rem; }
 .prototype-frame--newsletter-footer .landing-newsletter-static span { min-block-size: 3.25rem; }
-.prototype-frame--newsletter-footer .site-footer { grid-template-columns: minmax(18rem, 1.8fr) repeat(3, minmax(8rem, 1fr)); gap: clamp(1.25rem, 4vw, 5rem); min-block-size: 0; padding: clamp(1.75rem, 4vh, 3rem) var(--page-gutter) var(--space-4); overflow: hidden; }
-.prototype-frame--newsletter-footer .site-footer--compact { grid-template-columns: minmax(18rem, 1.8fr) repeat(2, minmax(8rem, 1fr)); }
-.prototype-frame--newsletter-footer .footer-identity { gap: var(--space-2); }
-.prototype-frame--newsletter-footer .footer-identity > p, .prototype-frame--newsletter-footer .footer-identity address, .prototype-frame--newsletter-footer .site-footer nav { font-size: 0.75rem; }
-.prototype-frame--newsletter-footer .footer-copyright { display: none; }
+/* Column left edges measure 806/1048/1288 inside the 1312px content box, which
+   is an exact 742 | 241 | 241 | 88 fit at zero gap. Scoped to the prototype frame
+   only: the base .site-footer serves /shop, /cart and the PDP. */
+/* Final track is auto, not the measured 88px: that width assumed the condensed
+   source face, and the substitute stack wraps "Sizing Guide" inside it. */
+.prototype-frame--newsletter-footer .site-footer { grid-template-columns: minmax(0, 1fr) 241px 241px auto; gap: 0; min-block-size: 0; padding: var(--space-16) var(--page-gutter) var(--space-3); overflow: hidden; }
+.prototype-frame--newsletter-footer .footer-identity { gap: var(--space-5); }
+.prototype-frame--newsletter-footer .footer-identity > p, .prototype-frame--newsletter-footer .footer-identity address { font-size: var(--text-md); line-height: 1.5; }
+.prototype-frame--newsletter-footer .footer-identity > p { max-inline-size: 25rem; }
+/* The export lockup is a 60px mark, not the wordmark (see figma-audit source gap);
+   the box keeps the measured 64px so the address rows stay on their measured rows. */
+.prototype-frame--newsletter-footer .footer-brand { min-block-size: 60px; }
+.prototype-frame--newsletter-footer .footer-identity address { margin-block-start: 0.875rem; }
+.prototype-frame--newsletter-footer .site-footer nav { font-size: var(--text-sm); }
+.prototype-frame--newsletter-footer .footer-watermark { display: block; grid-row: 2; }
+.prototype-frame--newsletter-footer .footer-copyright { grid-row: 2; grid-column: 2 / -1; align-self: end; margin: 0; }
 
-@media (max-width: 63.99rem), (prefers-reduced-motion: reduce) {
-  .prototype-track { block-size: auto; }
-  .prototype-viewport { position: static; block-size: auto; overflow: visible; }
-  .prototype-frame { position: relative !important; inset: auto; min-block-size: auto; overflow: visible; opacity: 1 !important; pointer-events: auto; transform: none !important; will-change: auto; }
-  .home-intro { display: none; }
-  .prototype-frame--hero { align-content: end; min-block-size: 44rem; padding-block: 8rem 4rem; }
-  .prototype-frame--hero .landing-cta { min-inline-size: 0; }
-  .prototype-frame--engineered { display: block; min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
-  .prototype-frame--engineered .landing-athlete-strip { margin-block: var(--space-8); }
-  .prototype-frame--philosophy { grid-template-columns: 1fr; min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
-  .landing-philosophy-media { inline-size: min(100%, 32rem); min-block-size: auto; padding-block-end: var(--space-8); }
-  .landing-philosophy-primary { inline-size: min(88%, 30rem); }
-  .landing-philosophy-secondary { inset-block-start: 7%; inset-inline-end: 0; }
-  .prototype-frame--tests { min-block-size: 42rem; }
-  .prototype-frame--tests h2 { font-size: clamp(2.1rem, 10vw, 3rem); }
-  .landing-tests-statement { max-inline-size: 10ch; font-size: clamp(2.5rem, 12vw, 4rem); }
-  .prototype-frame--newsletter-footer { display: block; }
-  .prototype-frame--newsletter-footer .landing-newsletter { min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
-  .prototype-frame--newsletter-footer .site-footer { display: grid; grid-template-columns: 1fr; padding-block: clamp(3rem, 10vw, 5rem); overflow: visible; }
-  .prototype-frame--newsletter-footer .footer-copyright { display: block; }
-}
+/* Flow layout: the scrubbed deck is progressive enhancement, so this is what
+   renders whenever the controller is not driving the page - before hydration and
+   with scripting off at every viewport, and permanently below 64rem or under
+   reduced motion. Gated on the timeline's own reported mode rather than a media
+   query, because the pre-hydration case has no viewport signal to key off. */
+[data-home-motion="flow"] .prototype-track { block-size: auto; }
+[data-home-motion="flow"] .prototype-viewport { position: static; block-size: auto; overflow: visible; }
+[data-home-motion="flow"] .prototype-frame { position: relative !important; inset: auto; min-block-size: auto; overflow: visible; opacity: 1 !important; pointer-events: auto; transform: none !important; will-change: auto; }
+[data-home-motion="flow"] .home-intro { display: none; }
+[data-home-motion="flow"] .prototype-frame--hero { align-content: end; min-block-size: 44rem; padding-block: 8rem 4rem; }
+[data-home-motion="flow"] .prototype-frame--hero .landing-cta { min-inline-size: 0; }
+[data-home-motion="flow"] .prototype-frame--engineered { display: block; min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
+[data-home-motion="flow"] .prototype-frame--engineered .landing-athlete-strip { margin-block: var(--space-8); }
+[data-home-motion="flow"] .prototype-frame--philosophy { grid-template-columns: 1fr; min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
+/* The rear card's +50px desktop offset would push past a narrow viewport, so
+   it scales with the container below the desktop breakpoint. */
+[data-home-motion="flow"] .landing-philosophy-media { inline-size: min(88%, 28.625rem); margin-block-end: var(--space-8); }
+[data-home-motion="flow"] .landing-philosophy-secondary { transform: translateX(9%) rotate(8deg); }
+[data-home-motion="flow"] .prototype-frame--tests { min-block-size: 42rem; padding-inline: var(--page-gutter); }
+/* Decorative only: scaled down so the 80px desktop inset stops crowding the
+   copy once the frame narrows. */
+[data-home-motion="flow"] .landing-tests-blocks--start { --sq: 5rem; inset-inline-start: var(--page-gutter); inset-block-start: 2rem; }
+[data-home-motion="flow"] .landing-tests-blocks--end { --sq: 5.5rem; inset-inline-end: calc(var(--page-gutter) + var(--sq) * 0.574); inset-block-end: calc(2rem + var(--sq) * 0.6); }
+[data-home-motion="flow"] .prototype-frame--tests h2 { font-size: clamp(2.1rem, 10vw, 3rem); }
+[data-home-motion="flow"] .prototype-frame--tests > div > p:not(.landing-tests-statement) { margin-block-start: var(--space-5); }
+[data-home-motion="flow"] .landing-tests-statement { max-inline-size: 10ch; margin-block-start: clamp(3.5rem, 10vw, 7rem); font-size: clamp(2.5rem, 12vw, 4rem); }
+[data-home-motion="flow"] .prototype-frame--newsletter-footer { display: block; }
+[data-home-motion="flow"] .prototype-frame--newsletter-footer .landing-newsletter { min-block-size: 0; padding-block: clamp(4rem, 12vw, 6rem); }
+[data-home-motion="flow"] .prototype-frame--newsletter-footer .site-footer { display: grid; grid-template-columns: 1fr; gap: clamp(2rem, 6vw, 7rem); padding-block: clamp(3rem, 10vw, 5rem); overflow: visible; }
+/* The desktop watermark/copyright placement would otherwise force an implicit
+   second column once the footer collapses to a single track. */
+[data-home-motion="flow"] .prototype-frame--newsletter-footer .footer-watermark { grid-row: auto; }
+[data-home-motion="flow"] .prototype-frame--newsletter-footer .footer-copyright { grid-row: auto; grid-column: 1; justify-self: start; margin-block-start: var(--space-6); }
 
 @media (forced-colors: active) {
   * { scrollbar-color: CanvasText Canvas; }

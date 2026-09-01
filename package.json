@@ -11,7 +11,9 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
-    "db:check": "drizzle-kit check"
+    "db:check": "node db/check.mjs",
+    "db:check:write": "node db/check.mjs --write",
+    "db:test:rls": "node --test db/tests/rls.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.5",

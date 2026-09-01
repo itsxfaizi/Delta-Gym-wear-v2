@@ -9,7 +9,14 @@ const envSchema = z
     SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
     DATABASE_URL: z.string().min(1).optional(),
     DELTA_TENANT_ID: z.string().uuid().optional(),
-    APP_URL: z.string().url(),
+    // Canonical public origin. `src/app/layout.tsx` reads NEXT_PUBLIC_SITE_URL
+    // for `metadataBase`, so it is the origin of record and carries the same
+    // local default the layout already falls back to.
+    NEXT_PUBLIC_SITE_URL: z.string().url().default("http://localhost:3000"),
+    // UNUSED: no runtime code reads APP_URL. Kept optional so a deployment that
+    // still sets it does not fail validation; delete it once the deployment
+    // contract in docs/phase-3-foundation-plan.md is updated.
+    APP_URL: z.string().url().optional(),
     LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
     NEXT_PUBLIC_APP_NAME: z.string().min(1).default("Delta Gym Wear"),
   })
@@ -56,6 +63,10 @@ export function getCatalogTenantId(): string {
   const tenantId = getServerEnv().DELTA_TENANT_ID;
   if (!tenantId) throw new Error("DELTA_TENANT_ID is required for database-backed catalog reads.");
   return tenantId;
+}
+
+export function getSiteUrl(): string {
+  return getServerEnv().NEXT_PUBLIC_SITE_URL;
 }
 
 export function getServiceRoleKey(): string {

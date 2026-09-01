@@ -9,6 +9,7 @@ import { cartStorageKey, restoreCartLines, serializeCartLines, type ResolvedCart
 import { formatMoney } from "@/features/catalog/money";
 import type { CatalogProduct, CatalogVariant } from "@/features/catalog/types";
 
+import { scrollToHomeFragment } from "./home-scene";
 import { StorefrontFooter } from "./storefront-footer";
 
 export type CartLine = ResolvedCartLine;
@@ -157,7 +158,12 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
           {isMenuOpen ? "Close" : "Menu"}
         </button>
         <nav id="primary-navigation" className={isMenuOpen ? "is-open" : ""} aria-label="Primary navigation">
-          {navigation.map((item) => (
+          {navigation.map((item) => item.href.startsWith("#") ? (
+            /* Plain anchor: a fragment needs no router, and native anchor scrolling is
+               already correct in flow and with scripting off. Only the scrubbed deck,
+               where the target sits in a sticky viewport, needs the offset computed. */
+            <a key={item.href} href={item.href} onClick={(event) => { setIsMenuOpen(false); if (scrollToHomeFragment(item.href.slice(1))) event.preventDefault(); }}>{item.label}</a>
+          ) : (
             <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} onClick={() => setIsMenuOpen(false)}>{item.label}</Link>
           ))}
         </nav>
