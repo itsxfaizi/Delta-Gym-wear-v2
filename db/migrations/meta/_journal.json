@@ -29,6 +29,13 @@
       "when": 1788363642604,
       "tag": "0003_cod_orders",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1788378226102,
+      "tag": "0004_overflow_guard_currency_fk",
+      "breakpoints": true
     }
   ]
 }

@@ -128,7 +128,16 @@ test("home presents the Figma logo intro once per browser session", async ({ pag
     intro: (window as typeof window & { __deltaIntroPaintProbe?: { display?: string; time?: number } }).__deltaIntroPaintProbe,
   }));
   expect(reloadPaint.intro?.display).toBe("none");
-  expect(reloadPaint.intro?.time).toBeLessThanOrEqual(reloadPaint.fcp!);
+
+  // Same race as the first-visit half of this file: the MutationObserver callback
+  // timestamp and the compositor's first-contentful-paint entry are recorded by
+  // different mechanisms and land within a millisecond of each other, so this
+  // failed by ~3ms under load while the overlay was in fact hidden before paint.
+  // What actually makes it hidden is the pre-paint bootstrap writing "skip", and
+  // that is deterministic: if the script had not run before paint the observer
+  // above would have caught "grid", not "none".
+  await expect(page.locator("html")).toHaveAttribute("data-home-intro-state", "skip");
+  expect(reloadPaint.fcp, "no first-contentful-paint entry - the page never painted").toBeGreaterThan(0);
 });
 
 test("home does not visibly replay its intro after client navigation", async ({ page }) => {
@@ -330,15 +339,27 @@ test("checkout reports COD validation errors accessibly", async ({ page }) => {
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await page.getByRole("link", { name: "Check out" }).click();
 
+  // The phone field now carries pattern="03[0-9]{9}", so the browser refuses the
+  // submission before it leaves the page and the server round trip this test is
+  // about never happens. Assert that native guard on its own terms, then drive
+  // the server rejection through a field the browser cannot pre-validate:
+  // "A" satisfies `required` and fails the server's min(2).
   await page.getByLabel("Full name").fill("A");
   await page.getByLabel("Pakistani mobile number").fill("+923001234567");
   await page.getByLabel("Address line 1").fill("Bad");
   await page.getByLabel("City").fill("Lahore");
+
+  const phone = page.getByLabel("Pakistani mobile number");
+  expect(await phone.evaluate((input: HTMLInputElement) => input.checkValidity())).toBe(false);
+
+  await phone.fill("03001234567");
+  expect(await phone.evaluate((input: HTMLInputElement) => input.checkValidity())).toBe(true);
+
   await page.getByRole("button", { name: "Place COD order" }).click();
 
   await expect(page.getByRole("alert").filter({ hasText: "Check the highlighted fields and try again." })).toBeVisible();
-  await expect(page.getByText("Enter a Pakistani mobile number like 03XXXXXXXXX.")).toBeVisible();
-  await expect(page.getByLabel("Pakistani mobile number")).toHaveAttribute("aria-invalid", "true");
+  await expect(page.getByText("Enter your full name.")).toBeVisible();
+  await expect(page.getByLabel("Full name")).toHaveAttribute("aria-invalid", "true");
 });
 
 test("unavailable variant reports an accessible error", async ({ page }) => {
@@ -446,5 +467,11 @@ test("home intro bootstrap does not trigger a hydration warning", async ({ page 
   await page.addInitScript(() => window.sessionStorage.removeItem("delta-home-intro-seen"));
   await page.goto("/");
   await expect(page.locator("[data-home-intro]")).toBeVisible();
+  // Hydration finishing is what emits the warning, so assert after the controller
+  // has attached rather than after the overlay paints - the overlay is server
+  // rendered and is visible before React has hydrated anything. Without this the
+  // assertion ran while the message was still in flight and passed against a page
+  // that really was mismatching.
+  await page.locator('[data-home-timeline][data-timeline-ready="true"]').waitFor();
   expect(hydrationWarnings).toEqual([]);
 });

@@ -256,3 +256,54 @@ test("if the CSP uses a nonce it is per-request and matches the served HTML", as
 
   expect(mismatches, "the CSP nonce is reused or disagrees with the served markup").toEqual([]);
 });
+
+
+/**
+ * The other half of the nonce contract. The per-request test above walks the nonces
+ * it FINDS in the markup, so a document that stamped none at all would satisfy it
+ * silently — which is exactly what happens if `x-nonce` stops reaching the render,
+ * or if Next stops propagating it to the scripts it injects. Under
+ * `script-src 'nonce-…' 'strict-dynamic'` an unnonced script is a dead page in any
+ * CSP3 browser; the 'unsafe-inline' fallback in the policy is ignored the moment a
+ * nonce is present.
+ *
+ * Fails if a served document carries no nonced script, if ANY script tag in it is
+ * missing the nonce, or if the JSON-LD block — the one script this repo writes by
+ * hand, with `dangerouslySetInnerHTML` — ships without one.
+ */
+test("every script Next stamps into a document carries that request's nonce, JSON-LD included", async () => {
+  const nonceOf = (policy: string | null): string | null => /'nonce-([A-Za-z0-9+/=_-]+)'/.exec(policy ?? "")?.[1] ?? null;
+  const findings: string[] = [];
+
+  for (const route of ["/", "/products/ease-fit-trouser", "/cart", "/checkout"]) {
+    const result = await probe(route);
+    const headerNonce = nonceOf(result.headers.get("content-security-policy"));
+    if (headerNonce === null) {
+      findings.push(`${route}: the served policy carries no nonce`);
+      continue;
+    }
+
+    const tags = result.body.match(/<script\b[^>]*>/g) ?? [];
+    if (tags.length === 0) findings.push(`${route}: no <script> tags at all — nothing was checked`);
+
+    const nonced = tags.filter((tag) => tag.includes(`nonce="${headerNonce}"`));
+    if (nonced.length === 0) findings.push(`${route}: not one of its ${tags.length} scripts carries the request nonce`);
+    for (const tag of tags.filter((tag) => !tag.includes("nonce="))) {
+      findings.push(`${route}: unnonced script ${tag.slice(0, 90)}`);
+    }
+    // The bootstrap Next writes inline is a different code path from the <script src>
+    // tags; a nonce that only reaches one of the two is still a broken page.
+    if (!nonced.some((tag) => !tag.includes(" src="))) {
+      findings.push(`${route}: no INLINE script carries the nonce`);
+    }
+  }
+
+  // The one script this repo authors itself, on the only route that renders it.
+  const product = await probe("/products/ease-fit-trouser");
+  const productNonce = nonceOf(product.headers.get("content-security-policy"));
+  const jsonLd = /<script type="application\/ld\+json"[^>]*>/.exec(product.body)?.[0] ?? "";
+  if (jsonLd === "") findings.push("the product page renders no JSON-LD block");
+  else if (!jsonLd.includes(`nonce="${productNonce}"`)) findings.push(`JSON-LD block is not nonced: ${jsonLd}`);
+
+  expect(findings, "the CSP nonce does not reach every script in the served document").toEqual([]);
+});

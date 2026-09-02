@@ -26,6 +26,12 @@ const U = {
   editorB: "b0000000-0000-0000-0000-000000000002",
   outsider: "c0000000-0000-0000-0000-000000000001",
 };
+const O = {
+  alpha: "e0000000-0000-0000-0000-000000000001",
+  beta: "e0000000-0000-0000-0000-000000000002",
+};
+/** src/features/catalog/seed.ts. The number the overflow report is written in. */
+const SEEDED_PRICE = 599900;
 const P = {
   published: "d0000000-0000-0000-0000-000000000001",
   draft: "d0000000-0000-0000-0000-000000000002",
@@ -38,6 +44,7 @@ let harness;
 let sql;
 
 const anon = { role: "anon" };
+const service = { role: "service_role" };
 const as = (userId) => ({ role: "authenticated", userId });
 
 /** Assert a statement is refused, and hand back the PostgreSQL error. */
@@ -59,6 +66,32 @@ async function visible(persona, fn) {
     if (error.code === "42501") return [];
     throw error;
   }
+}
+
+/** Assert a statement is refused for the table OWNER too, and hand back the
+ *  error. The owner bypasses RLS, so this reaches the constraints themselves. */
+async function ownerRefused(statement) {
+  try {
+    await sql.unsafe(statement);
+  } catch (error) {
+    return error;
+  }
+  throw new assert.AssertionError({ message: `expected the statement to be refused: ${statement}` });
+}
+
+const ROLLBACK = new Error("rollback");
+/** Owner-level work that must not survive the test. */
+async function inRollback(fn) {
+  let out;
+  await sql
+    .begin(async (tx) => {
+      out = await fn(tx);
+      throw ROLLBACK;
+    })
+    .catch((error) => {
+      if (error !== ROLLBACK) throw error;
+    });
+  return out;
 }
 
 before(async () => {
@@ -101,6 +134,22 @@ before(async () => {
 
   await sql`INSERT INTO product_revisions (tenant_id, product_id, revision_number, status, snapshot, author_user_id) VALUES (${T_A}, ${P.published}, 1, 'published', '{"status":"published"}'::jsonb, ${U.ownerA})`;
   await sql`INSERT INTO audit_events (tenant_id, actor_user_id, action, target_type, target_id, outcome, before, after) VALUES (${T_A}, ${U.ownerA}, 'product.status_transition', 'product', ${P.published}, 'success', '{"status":"draft"}'::jsonb, '{"status":"published"}'::jsonb)`;
+
+  // One COD order per tenant. The payload is invented but shaped like the real
+  // thing on purpose - a name, a Pakistani mobile number and a street address
+  // are exactly what makes these two tables worth an anon key.
+  await sql`
+    INSERT INTO orders (id, tenant_id, order_token, order_reference, customer_full_name, customer_phone,
+                        address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)
+    VALUES
+      (${O.alpha}, ${T_A}, ${"a".repeat(64)}, 'ALPHA-1', 'Alpha Buyer', '03001234567', '1 Alpha Road', 'Karachi', ${SEEDED_PRICE}, 25000, ${SEEDED_PRICE + 25000}, 'PKR'),
+      (${O.beta},  ${T_B}, ${"b".repeat(64)}, 'BETA-1',  'Beta Buyer',  '03007654321', '2 Beta Road',  'Lahore',  ${SEEDED_PRICE}, 25000, ${SEEDED_PRICE + 25000}, 'PKR')`;
+  await sql`
+    INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,
+                             unit_price_amount, quantity, line_total_amount, currency)
+    VALUES
+      (${O.alpha}, 'ease-fit-trouser', 'Ease Fit Trouser', 'dev-ease-black-m', 'DEV-EFT-BLK-M', ${SEEDED_PRICE}, 1, ${SEEDED_PRICE}, 'PKR'),
+      (${O.beta},  'ease-fit-trouser', 'Ease Fit Trouser', 'dev-ease-black-m', 'DEV-EFT-BLK-M', ${SEEDED_PRICE}, 1, ${SEEDED_PRICE}, 'PKR')`;
 });
 
 after(async () => {
@@ -479,5 +528,415 @@ describe("RLS coverage", () => {
           WHERE g.table_schema = 'public' AND g.table_name = p.tablename
             AND g.grantee = r.rolname AND g.privilege_type = p.cmd)`;
     assert.equal(rows.length, 0, `policy with no grant: ${JSON.stringify(rows)}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// COD order tables. Supabase publishes every table in `public` over PostgREST
+// with the anon key, which ships to every browser; `orders` holds a customer's
+// name, Pakistani mobile number and home address, and `order_items` holds what
+// they bought. 0003 answered that by granting anon and authenticated nothing
+// at all. These assertions are what stops a later migration handing it back.
+// ---------------------------------------------------------------------------
+
+/** One statement per SQL command, per table, all of them harmless if they
+ *  somehow succeed - the point is the privilege check, not the effect. */
+const ORDER_STATEMENTS = {
+  orders: {
+    SELECT: `SELECT customer_phone, address_line_1 FROM orders`,
+    INSERT:
+      `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+      ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+      ` VALUES ('${T_A}', 'probe-token', 'PROBE-1', 'Probe', '03000000000', 'probe road', 'Karachi', 1, 0, 1, 'PKR')`,
+    UPDATE: `UPDATE orders SET city = city`,
+    DELETE: `DELETE FROM orders`,
+  },
+  order_items: {
+    SELECT: `SELECT sku, quantity FROM order_items`,
+    INSERT:
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+      ` unit_price_amount, quantity, line_total_amount, currency)` +
+      ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', 1, 1, 1, 'PKR')`,
+    UPDATE: `UPDATE order_items SET quantity = quantity`,
+    DELETE: `DELETE FROM order_items`,
+  },
+};
+
+const UNPRIVILEGED = [
+  ["anon", anon],
+  ["authenticated member of the order's tenant", as(U.ownerA)],
+  ["authenticated member of another tenant", as(U.editorB)],
+  ["authenticated non-member", as(U.outsider)],
+];
+
+describe("orders and order_items are unreachable by anon and authenticated", () => {
+  for (const [label, persona] of UNPRIVILEGED) {
+    for (const [table, statements] of Object.entries(ORDER_STATEMENTS)) {
+      for (const [command, statement] of Object.entries(statements)) {
+        it(`${label} cannot ${command} ${table}`, async () => {
+          const error = await refused(persona, (tx) => tx.unsafe(statement));
+          assert.equal(error.code, "42501", `${command} ${table} as ${label}: ${error.message}`);
+        });
+      }
+    }
+  }
+
+  it("holds no privilege on either table in the catalog, not merely in practice", async () => {
+    const rows = await sql`
+      SELECT table_name, grantee, privilege_type FROM information_schema.role_table_grants
+      WHERE table_schema = 'public'
+        AND table_name IN ('orders', 'order_items')
+        AND grantee IN ('anon', 'authenticated')`;
+    assert.equal(rows.length, 0, `unexpected grant: ${JSON.stringify(rows)}`);
+  });
+
+  it("has no policy on either table either, so RLS is default-deny", async () => {
+    const rows = await sql`
+      SELECT policyname, tablename FROM pg_policies
+      WHERE schemaname = 'public' AND tablename IN ('orders', 'order_items')`;
+    assert.equal(rows.length, 0, `unexpected policy: ${JSON.stringify(rows)}`);
+  });
+
+  it("keeps row level security enabled on both tables after 0004", async () => {
+    const rows = await sql`
+      SELECT relname FROM pg_class
+      WHERE relnamespace = 'public'::regnamespace
+        AND relname IN ('orders', 'order_items') AND NOT relrowsecurity`;
+    assert.equal(rows.length, 0, `RLS disabled on: ${JSON.stringify(rows)}`);
+  });
+
+  it("service_role can read and write both tables", async () => {
+    // BYPASSRLS is a Supabase deployment fact reproduced by the harness shim,
+    // not something these migrations can assert. Checked explicitly so that a
+    // shim that quietly loses it fails here instead of turning the reads below
+    // into a silent zero-row pass.
+    const [role] = await sql`SELECT rolbypassrls FROM pg_roles WHERE rolname = 'service_role'`;
+    assert.equal(
+      role.rolbypassrls,
+      true,
+      "harness shim: service_role must bypass RLS, as Supabase's does. A stale cluster-wide " +
+        "role from an older run is the usual cause - `DROP ROLE service_role` and re-run.",
+    );
+
+    await asPersona(sql, service, async (tx) => {
+      const orders = await tx`SELECT id FROM orders`;
+      const items = await tx`SELECT id FROM order_items`;
+      assert.equal(orders.length, 2, "service_role should see both tenants' orders");
+      assert.equal(items.length, 2);
+    });
+    // One persona per statement: asPersona rolls back, so DELETE FROM orders
+    // does not cascade the row the next INSERT INTO order_items needs.
+    for (const [table, statements] of Object.entries(ORDER_STATEMENTS)) {
+      for (const [command, statement] of Object.entries(statements)) {
+        if (command === "SELECT") continue;
+        await asPersona(sql, service, (tx) => tx.unsafe(statement)).catch((error) => {
+          throw new assert.AssertionError({ message: `service_role ${command} ${table}: ${error.message}` });
+        });
+      }
+    }
+  });
+
+  it("cross-tenant: a member of tenant B cannot reach tenant A's order by id", async () => {
+    for (const statement of [
+      `SELECT customer_phone FROM orders WHERE id = '${O.alpha}'`,
+      `SELECT sku FROM order_items WHERE order_id = '${O.alpha}'`,
+      `UPDATE orders SET city = 'x' WHERE id = '${O.alpha}'`,
+      `DELETE FROM order_items WHERE order_id = '${O.alpha}'`,
+    ]) {
+      const error = await refused(as(U.ownerB), (tx) => tx.unsafe(statement));
+      assert.equal(error.code, "42501", statement);
+    }
+  });
+});
+
+describe("overflow is a database problem, not an application one", () => {
+  // 100 cart lines x 99 units is legal input (src/features/catalog/cart.ts);
+  // at the seeded price that is 5,939,010,000 minor units, which int4 cannot
+  // hold. 0004 widens the money columns to int8 and bounds them.
+  const OVERFLOWING_SUBTOTAL = 100 * 99 * SEEDED_PRICE;
+
+  it("the reported cart really does exceed int4", async () => {
+    assert.equal(OVERFLOWING_SUBTOTAL, 5_939_010_000);
+    await assert.rejects(
+      () => sql`SELECT ${OVERFLOWING_SUBTOTAL}::integer`,
+      (error) => error.code === "22003",
+      "the pre-0004 column type would still refuse this value",
+    );
+  });
+
+  it("stores the overflowing order exactly, and reads it back exactly", async () => {
+    const stored = await inRollback(async (tx) => {
+      const [order] = await tx`
+        INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,
+                            address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)
+        VALUES (${T_A}, ${"c".repeat(64)}, 'BIG-1', 'Bulk Buyer', '03009999999', '3 Bulk Road', 'Karachi',
+                ${OVERFLOWING_SUBTOTAL}, 0, ${OVERFLOWING_SUBTOTAL}, 'PKR')
+        RETURNING id, subtotal_amount, total_amount`;
+      // The whole cart, one row per line, so the sum is exercised too.
+      await tx`
+        INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,
+                                 unit_price_amount, quantity, line_total_amount, currency)
+        SELECT ${order.id}, 'ease-fit-trouser', 'Ease Fit Trouser', 'dev-ease-black-m',
+               'DEV-EFT-BLK-M', ${SEEDED_PRICE}, 99, ${99 * SEEDED_PRICE}, 'PKR'
+        FROM generate_series(1, 100)`;
+      const [sum] = await tx`SELECT sum(line_total_amount)::bigint AS total FROM order_items WHERE order_id = ${order.id}`;
+      return { order, sum };
+    });
+    assert.equal(Number(stored.order.subtotal_amount), OVERFLOWING_SUBTOTAL, "no truncation on the way in or out");
+    assert.equal(Number(stored.order.total_amount), OVERFLOWING_SUBTOTAL);
+    assert.equal(Number(stored.sum.total), OVERFLOWING_SUBTOTAL, "100 lines x 99 units sums to the order subtotal");
+  });
+
+  it("int8 would still overflow, which is why the bounds exist", async () => {
+    await assert.rejects(
+      () => sql`SELECT 100000000000000000::bigint * 99`,
+      (error) => error.code === "22003",
+      "widening alone only moves the cliff",
+    );
+  });
+
+  it("refuses a unit price that would overflow int8 when multiplied out, as a check violation and not an arithmetic error", async () => {
+    // 1e17 * 99 is 9.9e18, past int8's 9.223e18. Before the ::numeric rebuild
+    // in 0004 this insert came back as 22003 numeric_value_out_of_range raised
+    // from inside order_items_amounts_nonnegative - a refusal the application
+    // cannot tell apart from a driver bug. It is now a named check violation.
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', 100000000000000000, 99, 0, 'PKR')`,
+    );
+    assert.equal(error.code, "23514", error.message);
+    assert.ok(
+      ["order_items_line_bounded", "order_items_amounts_nonnegative"].includes(error.constraint_name),
+      `unexpected constraint ${error.constraint_name}`,
+    );
+  });
+
+  it("names the bound when the bound is the only thing violated", async () => {
+    // Arithmetic deliberately correct, so only order_items_line_bounded can
+    // fail and PostgreSQL's free choice of constraint order cannot make this
+    // assertion flaky.
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', 2000000000000, 2, 4000000000000, 'PKR')`,
+    );
+    assert.equal(error.code, "23514", error.message);
+    assert.equal(error.constraint_name, "order_items_line_bounded");
+  });
+
+  it("refuses a quantity above the cart contract's own ceiling of 99", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', ${SEEDED_PRICE}, 100, ${100 * SEEDED_PRICE}, 'PKR')`,
+    );
+    assert.equal(error.code, "23514", error.message);
+    assert.equal(error.constraint_name, "order_items_line_bounded");
+  });
+
+  it("refuses an order total above the bound, by name rather than by overflow", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+        ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+        ` VALUES ('${T_A}', 'over-token', 'OVER-1', 'X', '03000000000', 'r', 'Karachi',` +
+        ` 2000000000000000, 0, 2000000000000000, 'PKR')`,
+    );
+    assert.equal(error.code, "23514", error.message);
+    assert.equal(error.constraint_name, "orders_amounts_bounded");
+  });
+
+  it("every bounded amount stays inside int8 through its own arithmetic", async () => {
+    // The closure argument the bounds are chosen for, checked rather than
+    // asserted in a comment: the largest product and the largest sum the
+    // schema can be asked to evaluate both fit.
+    const [row] = await sql`
+      SELECT 1000000000000::bigint * 99 AS max_line,
+             1000000000000000::bigint + 1000000000000::bigint AS max_total`;
+    assert.ok(Number(row.max_line) < Number.MAX_SAFE_INTEGER);
+    assert.equal(Number(row.max_line), 99_000_000_000_000);
+    assert.equal(Number(row.max_total), 1_001_000_000_000_000);
+  });
+});
+
+describe("the price arithmetic the buyer is charged on", () => {
+  it("refuses a total that disagrees with subtotal plus shipping", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+        ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+        ` VALUES ('${T_A}', 'bad-sum', 'BAD-1', 'X', '03000000000', 'r', 'Karachi', 100, 25, 1, 'PKR')`,
+    );
+    assert.equal(error.code, "23514");
+    assert.equal(error.constraint_name, "orders_amounts_nonnegative");
+  });
+
+  it("refuses a negative subtotal or shipping fee", async () => {
+    for (const [subtotal, shipping, total] of [[-1, 0, -1], [0, -1, -1]]) {
+      const error = await ownerRefused(
+        `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+          ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+          ` VALUES ('${T_A}', 'neg-${subtotal}-${shipping}', 'NEG-${subtotal}${shipping}', 'X', '03000000000',` +
+          ` 'r', 'Karachi', ${subtotal}, ${shipping}, ${total}, 'PKR')`,
+      );
+      assert.equal(error.code, "23514");
+      assert.equal(error.constraint_name, "orders_amounts_nonnegative");
+    }
+  });
+
+  it("refuses a line total that disagrees with unit price times quantity", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', ${SEEDED_PRICE}, 3, ${SEEDED_PRICE}, 'PKR')`,
+    );
+    assert.equal(error.code, "23514");
+    assert.equal(error.constraint_name, "order_items_amounts_nonnegative");
+  });
+
+  it("refuses a zero or negative quantity", async () => {
+    for (const quantity of [0, -1]) {
+      const error = await ownerRefused(
+        `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+          ` unit_price_amount, quantity, line_total_amount, currency)` +
+          ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', ${SEEDED_PRICE}, ${quantity}, ${quantity * SEEDED_PRICE}, 'PKR')`,
+      );
+      assert.equal(error.code, "23514");
+      assert.equal(error.constraint_name, "order_items_quantity_positive");
+    }
+  });
+
+  it("accepts the arithmetic when it is right", async () => {
+    const rows = await inRollback(
+      (tx) => tx`
+        INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,
+                                 unit_price_amount, quantity, line_total_amount, currency)
+        VALUES (${O.alpha}, 'h', 't', 'v', 's', ${SEEDED_PRICE}, 3, ${3 * SEEDED_PRICE}, 'PKR')
+        RETURNING line_total_amount`,
+    );
+    assert.equal(Number(rows[0].line_total_amount), 3 * SEEDED_PRICE);
+  });
+});
+
+describe("mixed currency is refused by the database, not only by the action", () => {
+  // A CHECK cannot see another table, so the constraint is a composite FOREIGN
+  // KEY on (order_id, currency) into orders(id, currency). Until 0004 this was
+  // an application rule in src/features/orders/actions.ts alone.
+  it("refuses a line whose currency is not its order's currency", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('${O.alpha}', 'h', 't', 'v', 's', 100, 1, 100, 'USD')`,
+    );
+    assert.equal(error.code, "23503", error.message);
+    assert.equal(error.constraint_name, "order_items_order_currency_fk");
+  });
+
+  it("accepts a line in the order's own currency", async () => {
+    const rows = await inRollback(
+      (tx) => tx`
+        INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,
+                                 unit_price_amount, quantity, line_total_amount, currency)
+        VALUES (${O.alpha}, 'h', 't', 'v', 's', 100, 1, 100, 'PKR') RETURNING currency`,
+    );
+    assert.equal(rows[0].currency, "PKR");
+  });
+
+  it("refuses changing an order's currency out from under its lines", async () => {
+    const error = await ownerRefused(`UPDATE orders SET currency = 'USD' WHERE id = '${O.alpha}'`);
+    assert.equal(error.code, "23503", error.message);
+    assert.equal(error.constraint_name, "order_items_order_currency_fk");
+  });
+});
+
+describe("the COD tables fail closed", () => {
+  it("refuses a payment method other than cod and a country other than PK", async () => {
+    for (const [column, value, constraint] of [
+      ["payment_method", "card", "orders_payment_method_cod"],
+      ["country", "US", "orders_country_pk"],
+    ]) {
+      const error = await ownerRefused(
+        `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+          ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency, ${column})` +
+          ` VALUES ('${T_A}', 'fc-${column}', 'FC-${column}', 'X', '03000000000', 'r', 'Karachi', 1, 0, 1, 'PKR', '${value}')`,
+      );
+      assert.equal(error.code, "23514");
+      assert.equal(error.constraint_name, constraint);
+    }
+  });
+
+  it("refuses an order with no currency, amount, or delivery address", async () => {
+    for (const column of ["currency", "total_amount", "address_line_1", "customer_phone", "tenant_id"]) {
+      const [row] = await sql`
+        SELECT is_nullable FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'orders' AND column_name = ${column}`;
+      assert.equal(row.is_nullable, "NO", `orders.${column} must be NOT NULL`);
+    }
+    const error = await ownerRefused(
+      `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+        ` address_line_1, city, subtotal_amount, shipping_amount, total_amount)` +
+        ` VALUES ('${T_A}', 'nn-currency', 'NN-1', 'X', '03000000000', 'r', 'Karachi', 1, 0, 1)`,
+    );
+    assert.equal(error.code, "23502", error.message);
+    assert.equal(error.column_name, "currency");
+  });
+
+  it("refuses a duplicate order token or reference", async () => {
+    for (const [column, value, constraint] of [
+      ["order_token", "a".repeat(64), "orders_order_token_unique"],
+      ["order_reference", "ALPHA-1", "orders_order_reference_unique"],
+    ]) {
+      const other = column === "order_token" ? `order_reference` : `order_token`;
+      const otherValue = column === "order_token" ? "DUP-1" : "d".repeat(64);
+      const error = await ownerRefused(
+        `INSERT INTO orders (tenant_id, ${column}, ${other}, customer_full_name, customer_phone,` +
+          ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+          ` VALUES ('${T_A}', '${value}', '${otherValue}', 'X', '03000000000', 'r', 'Karachi', 1, 0, 1, 'PKR')`,
+      );
+      assert.equal(error.code, "23505");
+      assert.equal(error.constraint_name, constraint);
+    }
+  });
+
+  it("refuses an order for a tenant that does not exist", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,` +
+        ` address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)` +
+        ` VALUES ('99999999-9999-9999-9999-999999999999', 'ghost', 'GHOST-1', 'X', '03000000000', 'r',` +
+        ` 'Karachi', 1, 0, 1, 'PKR')`,
+    );
+    assert.equal(error.code, "23503");
+  });
+
+  it("refuses an order line with no order", async () => {
+    const error = await ownerRefused(
+      `INSERT INTO order_items (order_id, product_handle, product_title, variant_id, sku,` +
+        ` unit_price_amount, quantity, line_total_amount, currency)` +
+        ` VALUES ('99999999-9999-9999-9999-999999999999', 'h', 't', 'v', 's', 1, 1, 1, 'PKR')`,
+    );
+    assert.equal(error.code, "23503");
+  });
+});
+
+describe("placing an order writes no audit row", () => {
+  // docs/pass-2-contracts.md section D: anonymous callers are deliberately not
+  // audited, because a row-per-request write on an unauthenticated endpoint is
+  // a denial-of-service amplifier. Pinned here so that adding an audit trigger
+  // to `orders` is a decision someone has to make on purpose.
+  it("no trigger on orders or order_items writes to audit_events", async () => {
+    const [before] = await sql`SELECT count(*)::int AS n FROM audit_events`;
+    await inRollback(
+      (tx) => tx`
+        INSERT INTO orders (tenant_id, order_token, order_reference, customer_full_name, customer_phone,
+                            address_line_1, city, subtotal_amount, shipping_amount, total_amount, currency)
+        VALUES (${T_A}, ${"e".repeat(64)}, 'AUDIT-1', 'X', '03000000000', 'r', 'Karachi', 1, 0, 1, 'PKR')`,
+    );
+    const [after] = await sql`SELECT count(*)::int AS n FROM audit_events`;
+    assert.equal(after.n, before.n, "an anonymous endpoint must not write a row per request");
+
+    const triggers = await sql`
+      SELECT tgname, c.relname FROM pg_trigger t
+      JOIN pg_class c ON c.oid = t.tgrelid
+      WHERE NOT t.tgisinternal AND c.relname IN ('orders', 'order_items')`;
+    assert.equal(triggers.length, 0, `unexpected trigger: ${JSON.stringify(triggers)}`);
   });
 });

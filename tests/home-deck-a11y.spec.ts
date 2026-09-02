@@ -90,6 +90,52 @@ for (const viewport of [MOBILE, DESKTOP]) {
       await page.goto("/");
       await expectNoSectionHiddenFromAssistiveTech(page);
     });
+
+    /**
+     * The intro overlay is `position: fixed; inset: 0` on `--color-ink` and is
+     * server-rendered, so it is in the document before any script runs. It is opted
+     * IN by `html[data-home-intro-state="play"]`, which only a pre-paint inline
+     * script sets. With scripting off that script never runs and the overlay must
+     * stay out of the way.
+     *
+     * Fails if the default is ever inverted back to "displayed unless hidden by
+     * script" — the merge's semantic conflict 2 — which would black out all five
+     * sections for a no-JS visitor while every check above still passed, because
+     * the frames underneath would still be painted, still carry their copy and
+     * still be exposed to assistive technology.
+     */
+    test(`the intro overlay is not visible at ${viewport.width}px without javascript`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await page.goto("/");
+
+      const intro = page.locator("[data-home-intro]");
+      // Absence would satisfy "not visible" for the wrong reason: the point is
+      // that the element ships and is inert, not that it was never sent.
+      await expect(intro, "the intro overlay is not in the server-rendered document").toHaveCount(1);
+      await expect(intro, "the intro overlay is painted with scripting off").toBeHidden();
+      await expect(page.locator("html")).not.toHaveAttribute("data-home-intro-state", "play");
+
+      // `display: none` is not the only way to cover a page. Whatever the browser
+      // hit-tests at the top of the viewport must not belong to the overlay.
+      const hits = await page.locator("body").evaluate((body) => {
+        const width = body.ownerDocument.defaultView?.innerWidth ?? 0;
+        const height = body.ownerDocument.defaultView?.innerHeight ?? 0;
+        return [
+          [width / 2, height / 2],
+          [width / 2, 40],
+          [16, height - 16],
+        ]
+          .map(([x, y]) => body.ownerDocument.elementFromPoint(x, y))
+          .filter((element): element is Element => element !== null)
+          .map((element) => ({ tag: element.tagName, intro: element.closest("[data-home-intro]") !== null }));
+      });
+      // Anti-vacuity: three points that all hit nothing would satisfy the check below.
+      expect(hits.length, "no element was hit-tested — the page has no layout").toBeGreaterThan(0);
+      expect(
+        hits.filter((hit) => hit.intro),
+        "the intro overlay is on top of the page with scripting off",
+      ).toEqual([]);
+    });
   });
 
   test(`every section renders visible content at ${viewport.width}px before hydration`, async ({ page }) => {

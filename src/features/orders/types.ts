@@ -1,4 +1,5 @@
 import type { CartLineInput } from "@/features/catalog/cart";
+import type { Result } from "@/features/result";
 
 export const ORDER_STATUSES = ["pending_confirmation", "confirmed", "cancelled"] as const;
 export const ORDER_PAYMENT_STATUSES = ["cod_pending_collection", "collected", "failed"] as const;
@@ -17,14 +18,13 @@ export type CheckoutField =
   | "postalCode"
   | "cartLines";
 
-export type CheckoutFieldErrors = Partial<Record<CheckoutField, string[]>>;
+export type CheckoutSuccess = { orderToken: string };
 
-export type CheckoutActionState = {
-  ok: boolean;
-  message: string;
-  fieldErrors: CheckoutFieldErrors;
-  orderToken?: string;
-};
+/**
+ * Contract B. `null` before the first submission — the form has no result yet,
+ * which is not the same thing as a failed one.
+ */
+export type CheckoutState = Result<CheckoutSuccess> | null;
 
 export type CheckoutOrderInput = {
   fullName: string;

@@ -23,6 +23,42 @@ describe("COD checkout schema", () => {
     expect(result.success).toBe(true);
   });
 
+  it("refuses a cart whose coalesced quantity passes the per-line cap", () => {
+    // The reported attack: 100 lines x 99 units of one variant, which resolves to
+    // 9,900 units and overflows the money columns at the seeded price.
+    const duplicated = Array.from({ length: 100 }, () => ({ productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 99 }));
+    const result = parseCheckoutFormData(checkoutForm({ cartLines: JSON.stringify(duplicated) }));
+    expect(result.success).toBe(false);
+  });
+
+  it("coalesces duplicate lines that stay inside the cap", () => {
+    const duplicated = [
+      { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 40 },
+      { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 40 },
+    ];
+    const result = parseCheckoutFormData(checkoutForm({ cartLines: JSON.stringify(duplicated) }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cartLines).toEqual([{ productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 80 }]);
+    }
+  });
+
+  it("keeps distinct variants on their own lines", () => {
+    const mixed = [
+      { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 2 },
+      { productHandle: "ease-fit-trouser", variantId: "dev-ease-sand-s", quantity: 3 },
+      { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 4 },
+    ];
+    const result = parseCheckoutFormData(checkoutForm({ cartLines: JSON.stringify(mixed) }));
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.cartLines).toEqual([
+        { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-m", quantity: 6 },
+        { productHandle: "ease-fit-trouser", variantId: "dev-ease-sand-s", quantity: 3 },
+      ]);
+    }
+  });
+
   it("rejects non-Pakistani mobile numbers and empty carts", () => {
     const result = parseCheckoutFormData(checkoutForm({ phone: "+923001234567", cartLines: "[]" }));
     expect(result.success).toBe(false);

@@ -80,7 +80,10 @@ export function getServiceRoleKey(): string {
 }
 
 export function getCodShippingFeeAmount(): number | null {
-  const raw = process.env.DELTA_COD_SHIPPING_FEE_AMOUNT;
+  // Trimmed before the emptiness check: Number(" ") is 0, so a whitespace-only
+  // value would otherwise configure free delivery silently rather than failing
+  // closed the way an unset value does. O-005 requires the fee be explicit.
+  const raw = process.env.DELTA_COD_SHIPPING_FEE_AMOUNT?.trim();
   if (!raw) return null;
 
   const amount = Number(raw);

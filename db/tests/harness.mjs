@@ -26,8 +26,18 @@ import postgres from "postgres";
 const MIGRATIONS = new URL("../migrations/", import.meta.url);
 
 /** Roles are CLUSTER-wide, not per-database. We create only what is missing and
- *  drop only what we created, so a pre-existing role of the same name survives. */
-export const SHIM_ROLES = ["anon", "authenticated", "service_role"];
+ *  drop only what we created, so a pre-existing role of the same name survives.
+ *
+ *  `service_role` carries BYPASSRLS because Supabase's does: it is the key that
+ *  is supposed to see everything, and without the attribute a test asserting
+ *  "service_role can read orders" would pass for the wrong reason - RLS is
+ *  enabled with no policy, so a grant-holding role that does not bypass RLS
+ *  reads zero rows and looks indistinguishable from a role with no grant. */
+export const SHIM_ROLES = [
+  ["anon", "NOLOGIN"],
+  ["authenticated", "NOLOGIN"],
+  ["service_role", "NOLOGIN BYPASSRLS"],
+];
 
 const AUTH_SHIM = `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -70,10 +80,10 @@ export async function provision(name = `delta_rls_test_${process.pid}`) {
   const admin = postgres({ database: "postgres", max: 1, onnotice: () => {} });
   const created = [];
   try {
-    for (const role of SHIM_ROLES) {
+    for (const [role, attributes] of SHIM_ROLES) {
       const [existing] = await admin`SELECT 1 FROM pg_roles WHERE rolname = ${role}`;
       if (!existing) {
-        await admin.unsafe(`CREATE ROLE ${role} NOLOGIN`);
+        await admin.unsafe(`CREATE ROLE ${role} ${attributes}`);
         created.push(role);
       }
     }

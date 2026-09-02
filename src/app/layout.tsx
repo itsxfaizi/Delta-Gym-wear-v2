@@ -41,7 +41,13 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: ReactNode }>) {
   return (
-    <html lang="en" className={`${outfit.variable} ${oswald.variable}`}>
+    // suppressHydrationWarning is scoped to this element's attributes only, and it
+    // is required rather than cosmetic: the pre-paint bootstrap in (store)/page.tsx
+    // sets data-home-intro-state on <html> before React hydrates, so the server
+    // HTML and the client DOM legitimately differ on that one attribute. Without
+    // it every homepage load logs a hydration error, which would drown the console
+    // checks several specs rely on. It does not suppress anything below <html>.
+    <html lang="en" suppressHydrationWarning className={`${outfit.variable} ${oswald.variable}`}>
       <body>
         <a className="skip-link" href="#main-content">
           Skip to content

@@ -3,8 +3,9 @@ import "server-only";
 /**
  * Source of truth for `drizzle-kit generate`. Every column, default, unique,
  * check, index and foreign key below is reproduced byte-for-byte by the SQL in
- * db/migrations/0000_initial_foundation.sql, 0001_rls_tenant_isolation.sql and
- * 0002_audit_media_constraints.sql.
+ * db/migrations/0000_initial_foundation.sql, 0001_rls_tenant_isolation.sql,
+ * 0002_audit_media_constraints.sql, 0003_cod_orders.sql and
+ * 0004_overflow_guard_currency_fk.sql.
  *
  * Four classes of object live ONLY in the SQL migrations because drizzle-kit
  * cannot generate them, and are therefore absent from db/migrations/meta/*.json:
@@ -18,8 +19,15 @@ import "server-only";
  *      BEFORE TRUNCATE statement triggers, the products hard-delete refusal and
  *      the publisher column-scope guard (0002).
  *   4. The RLS policies, the `current_tenant_role()` SECURITY DEFINER helper and
- *      the anon/authenticated/service_role GRANTs (0001, amended in 0002). Only
- *      the `ENABLE ROW LEVEL SECURITY` half is generated, from `.enableRLS()`.
+ *      the anon/authenticated/service_role GRANTs (0001, amended in 0002, and
+ *      the orders/order_items REVOKEs in 0003). Only the `ENABLE ROW LEVEL
+ *      SECURITY` half is generated, from `.enableRLS()`.
+ *
+ * One further thing drizzle-kit gets right but in the wrong order: a composite
+ * FOREIGN KEY and the UNIQUE it points at are emitted FK-first, which will not
+ * execute. 0004 swaps those two statements by hand; the snapshot is unaffected
+ * because statement order is not part of it. Check the generated SQL, do not
+ * assume it runs.
  *
  * Because 3 and 4 are invisible to drizzle-kit, `npm run db:check` is what
  * guards them: it verifies every journal entry against its `.sql` file, its
@@ -46,6 +54,7 @@ import "server-only";
 
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   integer,
@@ -316,9 +325,9 @@ export const orders = pgTable(
     province: text("province"),
     postalCode: text("postal_code"),
     country: text("country").notNull().default("PK"),
-    subtotalAmount: integer("subtotal_amount").notNull(),
-    shippingAmount: integer("shipping_amount").notNull(),
-    totalAmount: integer("total_amount").notNull(),
+    subtotalAmount: bigint("subtotal_amount", { mode: "number" }).notNull(),
+    shippingAmount: bigint("shipping_amount", { mode: "number" }).notNull(),
+    totalAmount: bigint("total_amount", { mode: "number" }).notNull(),
     currency: text("currency").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
@@ -326,6 +335,11 @@ export const orders = pgTable(
   (table) => [
     unique("orders_order_token_unique").on(table.orderToken),
     unique("orders_order_reference_unique").on(table.orderReference),
+    // Redundant as a uniqueness statement (id is already the primary key) and
+    // present only because a composite FOREIGN KEY needs a unique target: it is
+    // what lets order_items.currency point at its own order's currency. See
+    // order_items_order_currency_fk below.
+    unique("orders_id_currency_unique").on(table.id, table.currency),
     index("orders_tenant_created_at_idx").on(table.tenantId, table.createdAt),
     // D-007 approves a COD-only, PK-only flow; both are pinned in the database
     // rather than trusted from the application. The arithmetic invariant is the
@@ -334,9 +348,26 @@ export const orders = pgTable(
     // cannot be stored at all.
     check("orders_payment_method_cod", sql`${table.paymentMethod} = 'cod'`),
     check("orders_country_pk", sql`${table.country} = 'PK'`),
+    // The `::numeric` is load-bearing, not decoration. PostgreSQL does not
+    // promise an evaluation order between CHECK constraints, so an int8 sum
+    // here could raise 22003 numeric_value_out_of_range before
+    // orders_amounts_bounded below ever got to refuse the row by name. numeric
+    // is arbitrary-precision and cannot overflow, which makes the bound - not
+    // an unhandled arithmetic error - the thing that always decides.
     check(
       "orders_amounts_nonnegative",
-      sql`${table.subtotalAmount} >= 0 and ${table.shippingAmount} >= 0 and ${table.totalAmount} = ${table.subtotalAmount} + ${table.shippingAmount}`,
+      sql`${table.subtotalAmount} >= 0 and ${table.shippingAmount} >= 0 and ${table.totalAmount}::numeric = ${table.subtotalAmount}::numeric + ${table.shippingAmount}::numeric`,
+    ),
+    // Overflow guard, 0004. These are NOT business ceilings - no one decides
+    // what an order may cost here. They are the loosest round numbers that make
+    // every product and sum this schema computes provably closed under int8:
+    // with unit_price <= 1e12 and quantity <= 99, a line total cannot exceed
+    // 9.9e13; with subtotal <= 1e15 and shipping <= 1e12, a total cannot exceed
+    // ~1.0e15. int8 tops out at 9.2e18, so no CHECK expression here can raise
+    // 22003 numeric_value_out_of_range - the named constraint always decides.
+    check(
+      "orders_amounts_bounded",
+      sql`${table.subtotalAmount} <= 1000000000000000 and ${table.shippingAmount} <= 1000000000000`,
     ),
   ],
 ).enableRLS();
@@ -354,18 +385,38 @@ export const orderItems = pgTable(
     sku: text("sku").notNull(),
     color: text("color"),
     size: text("size"),
-    unitPriceAmount: integer("unit_price_amount").notNull(),
+    unitPriceAmount: bigint("unit_price_amount", { mode: "number" }).notNull(),
     quantity: integer("quantity").notNull(),
-    lineTotalAmount: integer("line_total_amount").notNull(),
+    lineTotalAmount: bigint("line_total_amount", { mode: "number" }).notNull(),
     currency: text("currency").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
     index("order_items_order_id_idx").on(table.orderId),
+    // A CHECK cannot see another table, but a composite FOREIGN KEY can: this
+    // makes "every line of an order carries that order's currency" a
+    // declarative database fact rather than an application convention. It is a
+    // second edge to the same parent as order_items_order_id_orders_id_fk and
+    // carries the same ON DELETE CASCADE so the two never disagree.
+    foreignKey({
+      columns: [table.orderId, table.currency],
+      foreignColumns: [orders.id, orders.currency],
+      name: "order_items_order_currency_fk",
+    }).onDelete("cascade"),
     check("order_items_quantity_positive", sql`${table.quantity} > 0`),
+    // `::numeric` for the same reason as orders_amounts_nonnegative: an int8
+    // product can overflow, and a CHECK that can raise 22003 is a CHECK that
+    // can pre-empt the named bound below.
     check(
       "order_items_amounts_nonnegative",
-      sql`${table.unitPriceAmount} >= 0 and ${table.lineTotalAmount} = ${table.unitPriceAmount} * ${table.quantity}`,
+      sql`${table.unitPriceAmount} >= 0 and ${table.lineTotalAmount}::numeric = ${table.unitPriceAmount}::numeric * ${table.quantity}::numeric`,
+    ),
+    // Overflow guard, 0004 - see orders_amounts_bounded. The quantity ceiling
+    // is not invented either: it is cartLineInputSchema's own `.max(99)`,
+    // pinned in the database the way 0003 pinned payment_method and country.
+    check(
+      "order_items_line_bounded",
+      sql`${table.unitPriceAmount} <= 1000000000000 and ${table.quantity} <= 99`,
     ),
   ],
 ).enableRLS();

@@ -1,6 +1,24 @@
 import { z } from "zod";
 
-import { cartLineInputSchema } from "@/features/catalog/cart";
+import { cartLineInputSchema, type CartLineInput } from "@/features/catalog/cart";
+
+/**
+ * The same `(productHandle, variantId)` may arrive on more than one line, and
+ * every line is resolved independently downstream, so 100 lines x 99 units of
+ * one variant is legal input today and the money columns overflow on it.
+ * Summing at the parse boundary gives one line per variant, which is what makes
+ * the per-line quantity cap mean anything.
+ */
+export function coalesceCartLines(lines: readonly CartLineInput[]): CartLineInput[] {
+  const byVariant = new Map<string, CartLineInput>();
+  for (const line of lines) {
+    const key = `${line.productHandle}:${line.variantId}`;
+    const existing = byVariant.get(key);
+    if (existing) existing.quantity += line.quantity;
+    else byVariant.set(key, { ...line });
+  }
+  return [...byVariant.values()];
+}
 
 const optionalText = z.preprocess(
   (value) => typeof value === "string" && value.trim() === "" ? undefined : value,
@@ -20,7 +38,17 @@ export const checkoutOrderSchema = z.object({
   province: optionalText,
   postalCode: optionalText,
   country: z.literal("PK"),
-  cartLines: z.array(cartLineInputSchema).min(1, "Your cart is empty.").max(100),
+  // Re-validated against the SAME per-line rules after coalescing, so the
+  // existing `quantity.max(99)` becomes the cap on the summed quantity too and
+  // is not written down twice. A sum over the cap is refused rather than
+  // clamped: the cart UI merges on add and caps at 99, so only fabricated input
+  // can reach it, and silently reducing a quantity on a COD order is the kind of
+  // surprise a courier discovers at the buyer's door.
+  cartLines: z.array(cartLineInputSchema)
+    .min(1, "Your cart is empty.")
+    .max(100)
+    .transform(coalesceCartLines)
+    .pipe(z.array(cartLineInputSchema)),
 });
 
 export function parseCheckoutFormData(formData: FormData) {
