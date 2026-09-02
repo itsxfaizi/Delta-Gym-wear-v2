@@ -145,6 +145,13 @@ test("no \"use client\" module transitively imports src/server", async () => {
     }
     const source = graph.get(current);
     if (source === undefined) continue;
+    // A "use server" module is a boundary, not a hop. Next compiles the client's
+    // import of a server action into a reference id; the module and everything it
+    // imports stay on the server and never enter a client bundle. Walking through
+    // it would report `checkout-view -> orders/actions -> src/server/db` as a leak
+    // that the on-disk bundle scan in this same file disproves. The action's own
+    // server-side imports are covered by that scan and by the server-only guard.
+    if (current !== trail.get(current) && /^\s*["']use server["']/.test(source)) continue;
     for (const specifier of importSpecifiers(source)) {
       const resolved = resolveLocalImport(specifier, path.join(REPO_ROOT, current));
       if (!resolved) continue;

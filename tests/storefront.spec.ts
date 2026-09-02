@@ -15,12 +15,210 @@ test("home follows the prototype sequence and leads to the catalog", async ({ pa
   await expect(page.getByRole("heading", { name: "All Products" })).toBeVisible();
 });
 
-test("home presents the Figma logo intro on a first visit", async ({ page }) => {
-  await page.addInitScript(() => window.sessionStorage.removeItem("delta-home-intro-seen"));
+test("home presents the Figma logo intro once per browser session", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.addInitScript(() => {
+    if (window.sessionStorage.getItem("delta-intro-test-initialized")) return;
+    window.sessionStorage.removeItem("delta-home-intro-seen");
+    window.sessionStorage.setItem("delta-intro-test-initialized", "true");
+  });
+  await page.addInitScript(() => {
+    const probe = {} as { display?: string; time?: number };
+    (window as typeof window & { __deltaIntroPaintProbe?: typeof probe }).__deltaIntroPaintProbe = probe;
+    const observer = new MutationObserver(() => {
+      const intro = document.querySelector("[data-home-intro]");
+      if (!intro) return;
+      probe.display = getComputedStyle(intro).display;
+      probe.time = performance.now();
+      observer.disconnect();
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  });
   await page.goto("/");
 
+  const intro = page.locator("[data-home-intro]");
+  const mark = intro.locator("img");
+  const firstPaint = await page.evaluate(() => ({
+    fcp: performance.getEntriesByName("first-contentful-paint")[0]?.startTime,
+    intro: (window as typeof window & { __deltaIntroPaintProbe?: { display?: string; time?: number } }).__deltaIntroPaintProbe,
+  }));
+  expect(firstPaint.intro?.display).toBe("grid");
+
+  // The property under test is "the intro is in the first paint, not popped in
+  // after hydration". Comparing the MutationObserver's callback timestamp to the
+  // compositor's first-contentful-paint entry races those two clocks: the two are
+  // recorded by different mechanisms and land within a millisecond of each other,
+  // so under parallel load this failed by 1.2-4.7ms while the intro was in fact
+  // server-rendered. Asserting on the delivered HTML proves the same property
+  // deterministically, and proves more: an element present in the server response
+  // cannot have been added after hydration, whatever the clocks say.
+  const serverHtml = await (await fetch(new URL("/", page.url()).toString())).text();
+  expect(serverHtml, "the intro overlay is not server-rendered, so it cannot be in the first paint").toContain(
+    "data-home-intro",
+  );
+  expect(firstPaint.fcp, "no first-contentful-paint entry - the page never painted").toBeGreaterThan(0);
+  await expect(intro).toBeVisible();
+  await expect(intro).toHaveCSS("pointer-events", "none");
+  await expect(mark).toHaveAttribute("src", "/design-reference/assets/delta-logo.svg");
+
+  const animationNames = await intro.evaluate((overlay) => ({
+    overlay: overlay.getAnimations().map((animation) => animation instanceof CSSAnimation ? animation.animationName : ""),
+    mark: overlay.querySelector("img")?.getAnimations().map((animation) => animation instanceof CSSAnimation ? animation.animationName : "") ?? [],
+  }));
+  expect(animationNames.mark).toContain("home-intro-mark-arrive");
+  expect(animationNames.overlay).toContain("home-intro-dissolve");
+
+  const motion = await intro.evaluate(async (overlay) => {
+    const logo = overlay.querySelector("img");
+    const markAnimation = logo?.getAnimations().find((animation) => animation instanceof CSSAnimation && animation.animationName === "home-intro-mark-arrive");
+    const dissolveAnimation = overlay.getAnimations().find((animation) => animation instanceof CSSAnimation && animation.animationName === "home-intro-dissolve");
+    if (!logo || !markAnimation || !dissolveAnimation) throw new Error("Expected intro animations are missing");
+
+    markAnimation.pause();
+    dissolveAnimation.pause();
+    const markTiming = markAnimation.effect!.getTiming();
+    const dissolveTiming = dissolveAnimation.effect!.getTiming();
+    const markDelay = markTiming.delay ?? 0;
+    const dissolveDelay = dissolveTiming.delay ?? 0;
+    const markDuration = Number(markTiming.duration);
+    const dissolveDuration = Number(dissolveTiming.duration);
+
+    markAnimation.currentTime = markDelay;
+    await new Promise(requestAnimationFrame);
+    const source = logo.getBoundingClientRect();
+    markAnimation.currentTime = markDelay + markDuration;
+    await new Promise(requestAnimationFrame);
+    const destination = logo.getBoundingClientRect();
+
+    dissolveAnimation.currentTime = dissolveDelay;
+    await new Promise(requestAnimationFrame);
+    const startOpacity = Number.parseFloat(getComputedStyle(overlay).opacity);
+    dissolveAnimation.currentTime = dissolveDelay + dissolveDuration;
+    await new Promise(requestAnimationFrame);
+    const endOpacity = Number.parseFloat(getComputedStyle(overlay).opacity);
+
+    return {
+      mark: { delay: markDelay, duration: markDuration, easing: getComputedStyle(logo).animationTimingFunction },
+      dissolve: { delay: dissolveDelay, duration: dissolveDuration, easing: getComputedStyle(overlay).animationTimingFunction, startOpacity, endOpacity },
+      source: { x: source.x, y: source.y, width: source.width, height: source.height },
+      destination: { x: destination.x, y: destination.y, width: destination.width, height: destination.height },
+    };
+  });
+
+  expect(motion.mark.delay).toBeCloseTo(1000, 6);
+  expect(motion.mark.duration).toBeCloseTo(3125.307321548462, 2);
+  expect(motion.mark.easing).toBe("cubic-bezier(0.16, 1, 0.3, 1)");
+  expect(motion.dissolve.delay).toBeCloseTo(4135.307321324945, 2);
+  expect(motion.dissolve.duration).toBeCloseTo(500, 6);
+  expect(motion.dissolve.easing).toBe("ease-out");
+  expect(motion.dissolve.startOpacity).toBe(1);
+  expect(motion.dissolve.endOpacity).toBe(0);
+
+  for (const [property, value] of Object.entries({ x: 573, y: 419, width: 293.3828430175781, height: 73.00000762939453 })) {
+    expect(motion.source[property as keyof typeof motion.source]).toBeCloseTo(value, 1);
+  }
+  for (const [property, value] of Object.entries({ x: -23901, y: -3812, width: 29961.275390625, height: 7455 })) {
+    expect(Math.abs(motion.destination[property as keyof typeof motion.destination] - value)).toBeLessThanOrEqual(1);
+  }
+
+  await page.reload();
+  await expect(page.locator("[data-home-intro]")).toHaveCount(0);
+  const reloadPaint = await page.evaluate(() => ({
+    fcp: performance.getEntriesByName("first-contentful-paint")[0]?.startTime,
+    intro: (window as typeof window & { __deltaIntroPaintProbe?: { display?: string; time?: number } }).__deltaIntroPaintProbe,
+  }));
+  expect(reloadPaint.intro?.display).toBe("none");
+  expect(reloadPaint.intro?.time).toBeLessThanOrEqual(reloadPaint.fcp!);
+});
+
+test("home does not visibly replay its intro after client navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.addInitScript(() => {
+    window.sessionStorage.removeItem("delta-home-intro-seen");
+    const displays: string[] = [];
+    const seen = new WeakSet<HTMLElement>();
+    (window as typeof window & { __deltaIntroDisplays?: string[] }).__deltaIntroDisplays = displays;
+    new MutationObserver(() => {
+      document.querySelectorAll<HTMLElement>("[data-home-intro]").forEach((intro) => {
+        if (!seen.has(intro)) {
+          seen.add(intro);
+          displays.push(getComputedStyle(intro).display);
+        }
+      });
+    }).observe(document, { childList: true, subtree: true });
+  });
+  await page.goto("/");
   await expect(page.locator("[data-home-intro]")).toBeVisible();
-  await expect(page.locator("[data-home-intro] img")).toHaveAttribute("src", "/design-reference/assets/delta-logo.svg");
+  const session = await page.context().newCDPSession(page);
+  await session.send("Emulation.setCPUThrottlingRate", { rate: 6 });
+
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    await page.getByRole("link", { name: "Shop", exact: true }).click();
+    await expect(page).toHaveURL(/\/shop$/);
+    const displayCount = await page.evaluate(() => (window as typeof window & { __deltaIntroDisplays?: string[] }).__deltaIntroDisplays?.length ?? 0);
+
+    await page.getByRole("banner").getByRole("link", { name: "Delta Gym Wear home" }).click();
+    await expect(page).toHaveURL(/\/$/);
+    // The property is "no visible replay". The original expectation was
+    // toEqual(["none"]), which assumed the overlay is re-rendered on every client
+    // navigation and merely hidden — leaving the result dependent on whether the
+    // previous unmount's cleanup had written data-home-intro-state before React
+    // inserted the new node, which raced and failed roughly one run in eight.
+    // The overlay is now simply not rendered again after its first mount in a
+    // document, so the honest assertion is that nothing visible appeared: every
+    // newly observed overlay, if any, computed to "none".
+    const newDisplays = await page.evaluate(
+      (start) => (window as typeof window & { __deltaIntroDisplays?: string[] }).__deltaIntroDisplays?.slice(start) ?? [],
+      displayCount,
+    );
+    expect(newDisplays.filter((display) => display !== "none"), "the intro replayed visibly after client navigation").toEqual([]);
+    await expect(page.locator("[data-home-intro]"), "an intro overlay is visible after returning home").toBeHidden();
+  }
+});
+
+test("home intro preserves its aspect ratio at the desktop breakpoint", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/");
+
+  const ratio = await page.locator(".home-intro-mark").evaluate(async (logo) => {
+    const animation = logo.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "home-intro-mark-arrive");
+    if (!animation) throw new Error("Expected home intro animation is missing");
+    animation.pause();
+    animation.currentTime = animation.effect!.getTiming().delay ?? 0;
+    await new Promise(requestAnimationFrame);
+    const bounds = logo.getBoundingClientRect();
+    return bounds.width / bounds.height;
+  });
+
+  expect(ratio).toBeCloseTo(293.3828430175781 / 73.00000762939453, 3);
+});
+
+test("home intro does not replay after client-side navigation", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.goto("/");
+  await expect(page.locator("[data-home-intro]")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => window.sessionStorage.getItem("delta-home-intro-seen"))).toBe("true");
+
+  await page.getByRole("link", { name: "Explore the range" }).click();
+  await expect(page).toHaveURL(/\/shop$/);
+  await page.evaluate(() => {
+    const probe = { animationNames: [] as string[], visible: false };
+    (window as typeof window & { __deltaClientIntroProbe?: typeof probe }).__deltaClientIntroProbe = probe;
+    new MutationObserver(() => {
+      const intro = document.querySelector("[data-home-intro]");
+      if (!intro) return;
+      probe.visible ||= getComputedStyle(intro).display !== "none" && Number.parseFloat(getComputedStyle(intro).opacity) > 0;
+      probe.animationNames.push(...intro.getAnimations({ subtree: true }).filter((animation) => animation instanceof CSSAnimation).map((animation) => animation.animationName));
+    }).observe(document.body, { childList: true, subtree: true });
+  });
+
+  await page.getByRole("link", { name: "Delta Gym Wear home" }).first().click();
+  await expect(page).toHaveURL(/\/$/);
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  const probe = await page.evaluate(() => (window as typeof window & { __deltaClientIntroProbe?: { animationNames: string[]; visible: boolean } }).__deltaClientIntroProbe);
+  expect(probe?.visible).toBe(false);
+  expect(probe?.animationNames).toEqual([]);
+  await expect(page.locator("[data-home-intro]")).toHaveCount(0);
 });
 
 test("desktop home scrubs continuously and wheel remains native", async ({ page }) => {
@@ -43,9 +241,8 @@ test("desktop home scrubs continuously and wheel remains native", async ({ page 
   await expect.poll(() => hero.getAttribute("data-frame-state")).toBe("settled");
 });
 
-test("mobile renders the prototype frames as normal flowing sections", async ({ page }) => {
+test("mobile flow preserves the desktop intro for the same browser session", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 });
-  await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
   await page.goto("/");
   // The server now renders the honest flow state, so every assertion below is
   // satisfied by the raw HTML. Wait for the controller to attach before reading
@@ -53,6 +250,17 @@ test("mobile renders the prototype frames as normal flowing sections", async ({ 
   await page.locator('[data-home-timeline][data-timeline-ready="true"]').waitFor();
   await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
   await expect(page.locator("[data-prototype-frame]")).toHaveCount(5);
+  await expect(page.locator("[data-home-intro]")).toHaveCount(0);
+  expect(await page.evaluate(() => window.sessionStorage.getItem("delta-home-intro-seen"))).toBeNull();
+
+  await page.setViewportSize({ width: 768, height: 720 });
+  await page.reload();
+  await expect(page.locator("[data-home-intro]")).toHaveCount(0);
+  expect(await page.evaluate(() => window.sessionStorage.getItem("delta-home-intro-seen"))).toBeNull();
+
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.reload();
+  await expect(page.locator("[data-home-intro]")).toBeVisible();
 });
 
 test("catalog search, filters, and sort stay in the URL", async ({ page }) => {
@@ -87,6 +295,50 @@ test("catalog to product to cart drawer and cart page", async ({ page }) => {
   await expect(page).toHaveURL(/\/cart$/);
   await expect(page.getByRole("heading", { name: "Your cart" })).toBeVisible();
   await expect(page.getByText("Black / M")).toBeVisible();
+});
+
+test("shopper places a Cash on Delivery order and cart clears", async ({ page }) => {
+  await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
+  await page.goto("/products/ease-fit-trouser");
+  await page.getByRole("radio", { name: "M", exact: true }).click();
+  await page.getByRole("button", { name: "ADD TO CART" }).click();
+  await page.getByRole("link", { name: "Check out" }).click();
+  await expect(page).toHaveURL(/\/checkout$/);
+
+  await page.getByLabel("Full name").fill("Ali Khan");
+  await page.getByLabel("Pakistani mobile number").fill("03001234567");
+  await page.getByLabel("Address line 1").fill("House 12, Street 4");
+  await page.getByLabel("City").fill("Lahore");
+  await page.getByLabel("Province (optional)").fill("Punjab");
+  await page.getByRole("button", { name: "Place COD order" }).click();
+
+  await expect(page).toHaveURL(/\/orders\/[a-f0-9]{64}$/);
+  await expect(page.getByRole("heading", { name: "Thank you" })).toBeVisible();
+  await expect(page.getByText(/DGW-[A-F0-9]{8}/)).toBeVisible();
+  await expect(page.getByText("Cash on Delivery", { exact: true })).toBeVisible();
+  await expect(page.getByText("Pending confirmation", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ease Fit Trouser")).toBeVisible();
+  await expect(page.getByText("Black / M x 1")).toBeVisible();
+  await expect(page.getByText("Our team will confirm it by phone or WhatsApp before dispatch.")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open cart, 0 items" })).toBeVisible();
+  expect(await page.evaluate(() => window.localStorage.getItem("delta-cart:public"))).toBe("[]");
+});
+
+test("checkout reports COD validation errors accessibly", async ({ page }) => {
+  await page.goto("/products/ease-fit-trouser");
+  await page.getByRole("radio", { name: "M", exact: true }).click();
+  await page.getByRole("button", { name: "ADD TO CART" }).click();
+  await page.getByRole("link", { name: "Check out" }).click();
+
+  await page.getByLabel("Full name").fill("A");
+  await page.getByLabel("Pakistani mobile number").fill("+923001234567");
+  await page.getByLabel("Address line 1").fill("Bad");
+  await page.getByLabel("City").fill("Lahore");
+  await page.getByRole("button", { name: "Place COD order" }).click();
+
+  await expect(page.getByRole("alert").filter({ hasText: "Check the highlighted fields and try again." })).toBeVisible();
+  await expect(page.getByText("Enter a Pakistani mobile number like 03XXXXXXXXX.")).toBeVisible();
+  await expect(page.getByLabel("Pakistani mobile number")).toHaveAttribute("aria-invalid", "true");
 });
 
 test("unavailable variant reports an accessible error", async ({ page }) => {
@@ -163,15 +415,36 @@ test("reduced motion removes meaningful transition duration", async ({ page }) =
   // it, or the test proves the markup shipped rather than that the client ran.
   await page.locator('[data-home-timeline][data-timeline-ready="true"]').waitFor();
   await expect(page.locator("[data-home-intro]")).toHaveCount(0);
+  expect(await page.evaluate(() => window.sessionStorage.getItem("delta-home-intro-seen"))).toBeNull();
   await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
   const duration = await page.getByRole("link", { name: "Explore the range" }).evaluate((element) => getComputedStyle(element).transitionDuration);
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.001);
   await expect(page.locator(".landing-hero-poster")).toBeVisible();
   await expect(page.locator(".landing-hero-video")).toHaveCount(0);
+
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.reload();
+  await expect(page.locator("[data-home-intro]")).toBeVisible();
 });
 
 test("home uses Figma-authored media without layout shift", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator(".landing-hero-poster")).toBeVisible();
   await expect(page.locator(".landing-hero-video")).toHaveAttribute("src", "/design-reference/assets/landing/hero-run.mp4");
+});
+
+test("home intro bootstrap does not trigger a hydration warning", async ({ page }) => {
+  const hydrationWarnings: string[] = [];
+  page.on("console", (message) => {
+    const text = message.text();
+    if (text.includes("hydrated but some attributes of the server rendered HTML didn't match")) {
+      hydrationWarnings.push(text);
+    }
+  });
+
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.addInitScript(() => window.sessionStorage.removeItem("delta-home-intro-seen"));
+  await page.goto("/");
+  await expect(page.locator("[data-home-intro]")).toBeVisible();
+  expect(hydrationWarnings).toEqual([]);
 });

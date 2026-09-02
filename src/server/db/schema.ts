@@ -75,6 +75,18 @@ export const productStatus = pgEnum("product_status", [
   "archived",
 ]);
 
+export const orderStatus = pgEnum("order_status", [
+  "pending_confirmation",
+  "confirmed",
+  "cancelled",
+]);
+
+export const orderPaymentStatus = pgEnum("order_payment_status", [
+  "cod_pending_collection",
+  "collected",
+  "failed",
+]);
+
 export const tenants = pgTable(
   "tenants",
   {
@@ -283,6 +295,81 @@ export const auditEvents = pgTable(
   ],
 ).enableRLS();
 
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    orderToken: text("order_token").notNull(),
+    orderReference: text("order_reference").notNull(),
+    status: orderStatus("status").notNull().default("pending_confirmation"),
+    paymentStatus: orderPaymentStatus("payment_status").notNull().default("cod_pending_collection"),
+    paymentMethod: text("payment_method").notNull().default("cod"),
+    customerFullName: text("customer_full_name").notNull(),
+    customerPhone: text("customer_phone").notNull(),
+    customerEmail: text("customer_email"),
+    addressLine1: text("address_line_1").notNull(),
+    addressLine2: text("address_line_2"),
+    city: text("city").notNull(),
+    province: text("province"),
+    postalCode: text("postal_code"),
+    country: text("country").notNull().default("PK"),
+    subtotalAmount: integer("subtotal_amount").notNull(),
+    shippingAmount: integer("shipping_amount").notNull(),
+    totalAmount: integer("total_amount").notNull(),
+    currency: text("currency").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("orders_order_token_unique").on(table.orderToken),
+    unique("orders_order_reference_unique").on(table.orderReference),
+    index("orders_tenant_created_at_idx").on(table.tenantId, table.createdAt),
+    // D-007 approves a COD-only, PK-only flow; both are pinned in the database
+    // rather than trusted from the application. The arithmetic invariant is the
+    // second line of defence behind the server-side recomputation in
+    // src/features/orders/actions.ts - a total that disagrees with its parts
+    // cannot be stored at all.
+    check("orders_payment_method_cod", sql`${table.paymentMethod} = 'cod'`),
+    check("orders_country_pk", sql`${table.country} = 'PK'`),
+    check(
+      "orders_amounts_nonnegative",
+      sql`${table.subtotalAmount} >= 0 and ${table.shippingAmount} >= 0 and ${table.totalAmount} = ${table.subtotalAmount} + ${table.shippingAmount}`,
+    ),
+  ],
+).enableRLS();
+
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    productHandle: text("product_handle").notNull(),
+    productTitle: text("product_title").notNull(),
+    variantId: text("variant_id").notNull(),
+    sku: text("sku").notNull(),
+    color: text("color"),
+    size: text("size"),
+    unitPriceAmount: integer("unit_price_amount").notNull(),
+    quantity: integer("quantity").notNull(),
+    lineTotalAmount: integer("line_total_amount").notNull(),
+    currency: text("currency").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("order_items_order_id_idx").on(table.orderId),
+    check("order_items_quantity_positive", sql`${table.quantity} > 0`),
+    check(
+      "order_items_amounts_nonnegative",
+      sql`${table.unitPriceAmount} >= 0 and ${table.lineTotalAmount} = ${table.unitPriceAmount} * ${table.quantity}`,
+    ),
+  ],
+).enableRLS();
+
 export type Tenant = typeof tenants.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -290,6 +377,8 @@ export type ProductVariant = typeof productVariants.$inferSelect;
 export type MediaReference = typeof mediaReferences.$inferSelect;
 export type ProductRevision = typeof productRevisions.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
+export type Order = typeof orders.$inferSelect;
+export type OrderItem = typeof orderItems.$inferSelect;
 
 export const schema = {
   tenants,
@@ -299,4 +388,6 @@ export const schema = {
   mediaReferences,
   productRevisions,
   auditEvents,
+  orders,
+  orderItems,
 };

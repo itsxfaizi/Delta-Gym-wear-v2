@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 
-import { HomeView } from "@/components/storefront/home-view";
+import { HomeView, } from "@/components/storefront/home-view";
+import { INTRO_BOOTSTRAP } from "@/components/storefront/home-scene";
 
 export const dynamic = "force-dynamic";
 import { listPublishedProducts } from "@/features/catalog/queries";
@@ -16,5 +18,12 @@ export const metadata: Metadata = {
 };
 
 export default async function HomePage() {
-  return <HomeView products={await listPublishedProducts()} />;
+  // Nonced so the strict CSP in src/middleware.ts admits it; see docs/security-headers.md.
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  return (
+    <>
+      <script nonce={nonce} dangerouslySetInnerHTML={{ __html: INTRO_BOOTSTRAP }} />
+      <HomeView products={await listPublishedProducts()} />
+    </>
+  );
 }

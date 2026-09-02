@@ -131,8 +131,23 @@ p { text-wrap: pretty; }
 .site-header--home nav a { color: #e8e8e8; }
 
 .home-page { background: var(--color-ink); color: var(--color-inverse); overflow-x: clip; }
-.home-intro { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; pointer-events: none; background: var(--color-ink); }
-.home-intro-mark { inline-size: min(23.33vw, 21rem); block-size: auto; transform-origin: center; animation: home-intro-mark-arrive 970ms cubic-bezier(0.16, 1, 0.3, 1) both; }
+/* Hidden by default so a scripting-off client never gets a full-screen overlay
+   covering the five sections; the pre-paint bootstrap in (store)/page.tsx opts
+   it IN by setting data-home-intro-state="play". */
+.home-intro { position: fixed; z-index: 20; inset: 0; display: none; place-items: center; pointer-events: none; background: var(--color-ink); animation: home-intro-dissolve 0.5s ease-out 4.135307321324945s both; }
+html[data-home-intro-state="play"] .home-intro { display: grid; }
+.home-intro-mark { position: absolute; inset-block-start: 44.57446808510638vh; inset-inline-start: 39.79166666666667vw; inline-size: 20.37380854288737vw; block-size: 5.069444974263509vw; transform-origin: 0 0; animation: home-intro-mark-arrive 3.125307321548462s cubic-bezier(0.16, 1, 0.3, 1) 1s both; }
+
+/* Mathematical bounds-equivalent; Figma did not author a transform origin. */
+@keyframes home-intro-mark-arrive {
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-1699.583333333333vw, -450.1063829787234vh, 0) scale(102.12347485101527, 102.12327699809903); }
+}
+
+@keyframes home-intro-dissolve {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 .landing-hero { position: relative; display: grid; align-content: end; min-block-size: min(58rem, 100svh); padding: clamp(8rem, 13vw, 12rem) var(--page-gutter) clamp(3rem, 7vw, 6rem); overflow: hidden; isolation: isolate; }
 /* Measured against the source poster mapped through object-fit: cover. The scrim
    is pure black and horizontal only; a y60-140 band samples the same curve as y600-700. */
@@ -225,6 +240,7 @@ p { text-wrap: pretty; }
 .catalog-filter-bar legend { inline-size: 100%; margin: 0 0 var(--space-2); }
 .catalog-filter-bar label:not(.sort-control) { position: relative; min-inline-size: 44px; min-block-size: 44px; display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2); padding-inline: var(--space-2); border: 1px solid var(--color-border); font-size: 0.8125rem; }
 .catalog-filter-bar label:has(input:checked) { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-inverse); }
+.catalog-filter-bar label:has(input:focus-visible) { outline: 0.1875rem solid var(--color-focus); outline-offset: 0.1875rem; }
 .catalog-filter-bar input[type="checkbox"] { position: absolute; opacity: 0; }
 .sort-control { display: flex; flex-direction: column; margin: 0; }
 .sort-control select { min-block-size: 44px; padding-inline: var(--space-3) 2rem; border: 1px solid var(--color-border); border-radius: 0; background: var(--color-canvas); color: var(--color-ink); }
@@ -316,7 +332,36 @@ p { text-wrap: pretty; }
 .cart-summary { align-self: start; position: sticky; inset-block-start: 6rem; margin-block-start: var(--space-4); padding: var(--space-6); background: var(--color-ink); color: var(--color-inverse); }
 .cart-summary > div { display: flex; justify-content: space-between; gap: var(--space-4); padding-block-end: var(--space-4); border-block-end: 1px solid #55565a; }
 .cart-summary p { color: #d9d9d9; font-size: 0.875rem; }
-.secondary-cta { inline-size: 100%; border: 1px solid var(--color-inverse); }
+.secondary-cta { min-block-size: 44px; inline-size: 100%; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--color-inverse); text-decoration: none; }
+
+.checkout-page, .order-page { max-inline-size: var(--content-width); margin-inline: auto; padding: clamp(2.5rem, 6vw, 6rem) var(--page-gutter); }
+.checkout-heading { max-inline-size: 48rem; margin-block-end: var(--space-8); }
+.checkout-heading h1, .order-confirmation h1 { margin: 0; font-size: clamp(2.75rem, 5.5vw, 5.5rem); font-weight: 800; letter-spacing: -0.04em; line-height: 0.95; text-transform: uppercase; }
+.checkout-heading p:last-child, .order-confirmation > p { max-inline-size: 58ch; margin-block: var(--space-4) 0; color: var(--color-ink-soft); }
+.checkout-layout, .order-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(18rem, 0.48fr); gap: clamp(2rem, 6vw, 6rem); align-items: start; }
+.checkout-panel, .order-panel { display: grid; gap: var(--space-4); }
+.checkout-panel h2, .checkout-summary h2, .order-panel h2 { margin: 0; font-size: 1.25rem; }
+.checkout-field, .checkout-field-row { display: grid; gap: var(--space-2); }
+.checkout-field-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
+.checkout-field span:first-child { color: var(--color-ink-soft); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
+.checkout-field input { min-block-size: 48px; inline-size: 100%; border: 1px solid var(--color-border); border-radius: 0; padding-inline: var(--space-3); background: var(--color-canvas); color: var(--color-ink); }
+.checkout-field input[aria-invalid="true"] { border-color: var(--color-danger); }
+.checkout-summary { position: sticky; inset-block-start: 6rem; display: grid; gap: var(--space-4); padding: var(--space-6); background: var(--color-ink); color: var(--color-inverse); }
+.checkout-summary p { margin: 0; color: #d9d9d9; font-size: 0.875rem; }
+.checkout-lines { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
+.checkout-lines li { display: grid; gap: var(--space-1); padding-block-end: var(--space-3); border-block-end: 1px solid rgb(255 255 255 / 0.2); }
+.checkout-lines li span:nth-child(2) { color: #d9d9d9; font-size: 0.875rem; }
+.checkout-total-row, .checkout-grand-total, .order-reference div { display: flex; justify-content: space-between; gap: var(--space-4); }
+.checkout-total-row { color: #d9d9d9; }
+.checkout-grand-total { padding-block-start: var(--space-4); border-block-start: 1px solid #55565a; font-size: 1.15rem; }
+.checkout-summary .form-error { margin: 0; color: #ffd8d8; }
+.checkout-summary .primary-cta:disabled { opacity: 0.55; cursor: not-allowed; }
+.order-confirmation { margin-block-end: var(--space-8); }
+.order-reference { display: grid; gap: var(--space-3); max-inline-size: 44rem; margin: var(--space-6) 0 0; padding-block-start: var(--space-4); border-block-start: 1px solid var(--color-border); }
+.order-reference dt { color: var(--color-ink-soft); font-size: 0.75rem; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
+.order-reference dd { margin: 0; font-weight: 700; }
+.order-panel address { font-style: normal; }
+.order-actions { grid-column: 1 / -1; max-inline-size: 24rem; }
 
 .site-footer { display: grid; grid-template-columns: minmax(16rem, 1.7fr) repeat(3, minmax(9rem, 1fr)); gap: clamp(2rem, 6vw, 7rem); padding: clamp(4rem, 8vw, 7rem) var(--page-gutter) var(--space-8); background: var(--color-ink); color: var(--color-inverse); }
 .footer-identity { display: grid; align-content: start; justify-items: start; gap: var(--space-4); }
@@ -347,7 +392,6 @@ p { text-wrap: pretty; }
 /* The opening mark referenced this keyframe but it was never defined, so the
    intro settle never ran. Transform/opacity only; the intro is skipped entirely
    under prefers-reduced-motion. Timing is an approximation, not a Figma value. */
-@keyframes home-intro-mark-arrive { from { opacity: 0; transform: scale(0.94); } to { opacity: 1; transform: none; } }
 
 @media (max-width: 64rem) {
   .catalog-layout { grid-template-columns: 14rem minmax(0, 1fr); gap: var(--space-8); }
@@ -396,7 +440,8 @@ p { text-wrap: pretty; }
   .pdp-page { grid-template-columns: 1fr; }
   .pdp-details { padding-block-start: 0; }
   .cart-page-layout { grid-template-columns: 1fr; }
-  .cart-summary { position: static; }
+  .cart-summary, .checkout-summary { position: static; }
+  .checkout-layout, .order-layout, .checkout-field-row { grid-template-columns: 1fr; }
   .site-footer { grid-template-columns: 1fr; }
   .site-footer nav { gap: var(--space-3) var(--space-6); }
   .footer-copyright { justify-self: start; }

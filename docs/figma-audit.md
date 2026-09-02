@@ -466,3 +466,11 @@ Making the server render the honest value had a side effect worth recording: fou
 - On desktop with JavaScript enabled, the page paints in flow for the hydration window and then collapses into the deck. That flip is the cost of an honest pre-hydration state; removing it needs a blocking inline script.
 - `storefront-footer.tsx`'s own `/#contact` link still targets a frame it lives inside, so it is a no-op on the home page.
 - The context field is still named `reducedMotion` while it now means "not scrubbing" — it reads `true` for a user who has not asked for reduced motion. Renaming touches three consumers and was left out of a pass scoped to one defect.
+
+## COD checkout approval — 2026-09-02
+
+The owner approved a minimal inferred COD-only checkout and confirmation flow for Pakistan. No checkout or confirmation Figma frames exist, so `/checkout` and `/orders/[orderToken]` intentionally reuse the established Delta catalog/cart visual system instead of claiming Figma fidelity.
+
+Approved commerce constraints: Cash on Delivery only, Pakistani mobile number, `PK` delivery address, nationwide courier-serviceability caveat, no delivery-window promise, no separate tax line, no payment gateway, no notification integration, opaque order token in the URL, separate `DGW-...` human order reference, and no inventory reserve/decrement until operations confirms the COD order. The fixed delivery fee must be supplied through approved business configuration; the UI must not invent a PKR amount.
+
+*Merged into the storefront foundation line on 2026-09-02. The audit history above is retained in full: every fidelity number in this repository was measured against `design-reference/exports/home/home-desktop-1440.png`, which the COD line did not carry. The COD approval section above is preserved verbatim from that line.*

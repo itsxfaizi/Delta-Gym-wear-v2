@@ -15,6 +15,14 @@ import {
 const INTRO_KEY = "delta-home-intro-seen";
 const DESKTOP_QUERY = "(min-width: 64rem)";
 
+/**
+ * Runs before first paint, from a nonced <script> in (store)/page.tsx, and opts
+ * the intro IN. Without it the overlay stays hidden, which is what a
+ * scripting-off client and every repeat visit should see. Rendered on the server
+ * so the intro is present at first paint instead of appearing after hydration.
+ */
+export const INTRO_BOOTSTRAP = `try{document.documentElement.dataset.homeIntroState=matchMedia("${DESKTOP_QUERY}").matches&&!matchMedia("(prefers-reduced-motion: reduce)").matches&&!sessionStorage.getItem("${INTRO_KEY}")?"play":"skip"}catch{document.documentElement.dataset.homeIntroState="skip"}`;
+
 export const HOME_FRAME_IDS = ["hero", "engineered", "philosophy", "tests", "newsletter-footer"] as const;
 export type FrameId = (typeof HOME_FRAME_IDS)[number];
 
@@ -28,7 +36,7 @@ type TimelineState = {
 const TimelineContext = createContext<TimelineState>({
   progress: 0,
   reducedMotion: true,
-  intro: false,
+  intro: true,
   settledFrame: "hero",
 });
 
@@ -109,16 +117,27 @@ export function scrollToHomeFragment(id: string) {
   return true;
 }
 
+/**
+ * Set once the intro has mounted in this document. Client navigation remounts the
+ * controller, and re-rendering the overlay there left its visibility depending on
+ * whether the previous unmount's cleanup had already written data-home-intro-state
+ * — a race that intermittently flashed the intro on the way back to "/". Reading
+ * it only on the client keeps SSR unaffected: the server must always render the
+ * overlay, and this module is shared across server requests.
+ */
+let introMountedInDocument = false;
+
 export function HomeSceneController({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLElement>(null);
   const frameRef = useRef<number | null>(null);
+  const introStartedRef = useRef(false);
   const [progress, setProgress] = useState(0);
   // Starts flowing, not scrubbing. The deck is progressive enhancement, so the
   // state the server renders - and the state a scripting-off client keeps - has to
   // be the one where every frame is settled, visible and reachable. syncPreferences
   // promotes it to the scrub on the first client frame.
   const [reducedMotion, setReducedMotion] = useState(true);
-  const [intro, setIntro] = useState(false);
+  const [intro, setIntro] = useState(() => typeof window === "undefined" || !introMountedInDocument);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -166,11 +185,18 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
     root?.setAttribute("data-timeline-ready", "true");
 
     try {
-      if (!reduced.matches && !window.sessionStorage.getItem(INTRO_KEY)) {
-        window.requestAnimationFrame(() => setIntro(true));
+      introMountedInDocument = true;
+      const shouldPlayIntro = introStartedRef.current || (!isFlow() && !window.sessionStorage.getItem(INTRO_KEY));
+      introStartedRef.current = shouldPlayIntro;
+      setIntro(shouldPlayIntro);
+      document.documentElement.dataset.homeIntroState = shouldPlayIntro ? "play" : "skip";
+      if (shouldPlayIntro) {
         window.sessionStorage.setItem(INTRO_KEY, "true");
       }
-    } catch { /* Session storage is unavailable; the initial false state is retained. */ }
+    } catch {
+      setIntro(false);
+      document.documentElement.dataset.homeIntroState = "skip";
+    }
 
     return () => {
       root?.removeEventListener("focusin", followFocus);
@@ -179,12 +205,13 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
       window.removeEventListener("scroll", scheduleProgress);
       window.removeEventListener("resize", scheduleProgress);
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      document.documentElement.dataset.homeIntroState = "skip";
     };
   }, []);
 
   const isFlow = reducedMotion;
   const settledFrame = getSettledFrame(progress);
-  const context = { progress, reducedMotion, intro: intro && !reducedMotion, settledFrame };
+  const context = { progress, reducedMotion, intro, settledFrame };
   const stageStyle = { "--timeline-progress": progress, "--home-frame-count": HOME_FRAME_IDS.length } as CSSProperties;
 
   return (
@@ -200,8 +227,14 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
 }
 
 function HomeIntro() {
-  const { progress, intro, reducedMotion } = useContext(TimelineContext);
-  if (!intro || reducedMotion) return null;
+  const { progress, intro } = useContext(TimelineContext);
+  // `intro` starts true so the overlay is in the server-rendered HTML and is
+  // therefore present at first paint rather than popping in after hydration.
+  // The mount effect flips it to whether the intro should actually play, which
+  // unmounts it for a repeat visit, a flow viewport or reduced motion. Before
+  // hydration - and with scripting off - CSS keeps it hidden unless the nonced
+  // bootstrap has opted in.
+  if (!intro) return null;
   const opacity = clamp(1 - progress * 14);
   return <div className="home-intro" data-home-intro aria-hidden="true" style={{ opacity }}><Image className="home-intro-mark" src="/design-reference/assets/delta-logo.svg" alt="" width={336} height={84} priority unoptimized /></div>;
 }

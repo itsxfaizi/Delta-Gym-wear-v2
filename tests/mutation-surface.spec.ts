@@ -181,6 +181,32 @@ test("no route module pulls the server-action file into the app graph", async ()
   expect(seen.size, "the import walk never left src/app — the resolver is not working").toBeGreaterThan(entryCount);
   expect([...seen].some((module) => module.startsWith("src/features/"))).toBe(true);
 
-  const reached = [...actionModules].filter((module) => seen.has(module)).map((module) => trail.get(module) as string);
-  expect(reached, "a server action module is reachable from the route graph").toEqual([]);
+  const reached = [...actionModules].filter((module) => seen.has(module));
+
+  // D-007 approves a guest COD checkout, so `src/features/orders/actions.ts` is
+  // reachable ON PURPOSE — it is the form's action. What must stay unreachable is
+  // the PRIVILEGED catalog mutation, which ships guarded with no UI caller because
+  // admin screens are still blocked on decision O-002. Reachability is not the
+  // security boundary for either one (a server action id is a deterministic build
+  // hash, not a secret); the boundary is the authorization check inside. This
+  // asserts the deliberate wiring has not drifted.
+  const PRIVILEGED = "src/features/catalog/actions.ts";
+  const APPROVED_REACHABLE = "src/features/orders/actions.ts";
+
+  expect(
+    reached.map((module) => trail.get(module) as string).filter((path) => path.includes(PRIVILEGED)),
+    "the privileged catalog mutation became reachable from the route graph — it has no approved UI caller",
+  ).toEqual([]);
+
+  // Anti-vacuity: if the checkout stops being wired, this test would otherwise pass
+  // for the wrong reason, having proved only that nothing is reachable at all.
+  expect(
+    reached,
+    "the approved COD checkout action is no longer reachable from any route — the form is unwired",
+  ).toContain(APPROVED_REACHABLE);
+
+  expect(
+    reached.filter((module) => module !== APPROVED_REACHABLE),
+    "an unexpected server action module is reachable from the route graph",
+  ).toEqual([]);
 });
