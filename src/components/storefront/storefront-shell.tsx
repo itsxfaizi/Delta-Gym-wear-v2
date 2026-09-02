@@ -18,6 +18,7 @@ type CartContextValue = {
   subtotal: number;
   add: (product: CatalogProduct, variant: CatalogVariant) => boolean;
   update: (key: string, quantity: number) => void;
+  clear: () => void;
   open: () => void;
 };
 
@@ -146,9 +147,14 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
     setAnnouncement(quantity < 1 ? "Item removed from cart." : "Cart updated.");
   };
 
+  const clear = () => {
+    setLines([]);
+    setAnnouncement("Cart cleared after order placement.");
+  };
+
   const count = lines.reduce((sum, line) => sum + line.quantity, 0);
   const subtotal = lines.reduce((sum, line) => sum + line.variant.priceAmount * line.quantity, 0);
-  const context = useMemo(() => ({ lines, count, subtotal, add, update, open: () => setIsCartOpen(true) }), [lines, count, subtotal]);
+  const context = useMemo(() => ({ lines, count, subtotal, add, update, clear, open: () => setIsCartOpen(true) }), [lines, count, subtotal]);
 
   return (
     <CartContext.Provider value={context}>
@@ -193,8 +199,9 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
                 <div className="drawer-scroll"><CartLines lines={lines} update={update} /></div>
                 <div className="drawer-footer">
                   <div className="drawer-total"><span>SUBTOTAL</span><strong>{formatMoney(subtotal, lines[0]?.variant.currency ?? "PKR")}</strong></div>
-                  <Link className="primary-cta drawer-cart-link" href="/cart" onClick={() => setIsCartOpen(false)}>View cart</Link>
-                  <p className="drawer-note">Checkout is not available in this launch.</p>
+                  <Link className="primary-cta drawer-cart-link" href="/checkout" onClick={() => setIsCartOpen(false)}>Check out</Link>
+                  <Link className="text-button drawer-cart-link" href="/cart" onClick={() => setIsCartOpen(false)}>View cart</Link>
+                  <p className="drawer-note">Cash on Delivery only. We confirm by phone or WhatsApp before dispatch.</p>
                 </div>
               </>
             )}

@@ -196,3 +196,9 @@ Documented visual deviations remain source gaps, not substitutions:
 - The philosophy orbit/dot vector has been **removed**; no CSS recreation remains. The paired rear image uses an existing original Figma crop, but the exact orbit asset is still absent.
 - The Three Tests square motif is also omitted pending its exact vector export.
 - No mobile/tablet Figma prototype frames exist. Below 1024 px the verified desktop content is stacked in source order with unchanged copy, source imagery, visible cart access, and 44 px controls.
+
+## COD checkout approval — 2026-09-02
+
+The owner approved a minimal inferred COD-only checkout and confirmation flow for Pakistan. No checkout or confirmation Figma frames exist, so `/checkout` and `/orders/[orderToken]` intentionally reuse the established Delta catalog/cart visual system instead of claiming Figma fidelity.
+
+Approved commerce constraints: Cash on Delivery only, Pakistani mobile number, `PK` delivery address, nationwide courier-serviceability caveat, no delivery-window promise, no separate tax line, no payment gateway, no notification integration, opaque order token in the URL, separate `DGW-...` human order reference, and no inventory reserve/decrement until operations confirms the COD order. The fixed delivery fee must be supplied through approved business configuration; the UI must not invent a PKR amount.

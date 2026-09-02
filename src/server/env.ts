@@ -68,6 +68,18 @@ export function getServiceRoleKey(): string {
   return serviceRoleKey;
 }
 
+export function getCodShippingFeeAmount(): number | null {
+  const raw = process.env.DELTA_COD_SHIPPING_FEE_AMOUNT;
+  if (!raw) return null;
+
+  const amount = Number(raw);
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error("DELTA_COD_SHIPPING_FEE_AMOUNT must be a nonnegative integer minor-unit amount.");
+  }
+
+  return amount;
+}
+
 export function getPublicSupabaseConfig(): {
   url: string;
   anonKey: string;

@@ -9,10 +9,12 @@ Status reflects the owner-approved public storefront sprint on 2026-08-30. Deskt
 | Collection | `/collections/[handle]` | Approved inferred catalog variant | Implemented for derived `all` collection only | No authored collection campaigns or additional collection data |
 | Product detail | `/products/[handle]` | Exact 1440 PDP structure from Figma layer 14; unverified reviews/promotions/policies omitted | Implemented | Original source images, authored zoom, size guide, and verified commerce facts unavailable |
 | Cart drawer | Shared modal state | Exact 1440 open state from Figma layer 13; accessible focus behavior added | Implemented | Checkout intentionally omitted |
-| Cart page | `/cart` | Approved inferred review surface reusing the cart contract | Implemented | No checkout, shipping, tax, or payment summary is approved |
+| Cart page | `/cart` | Approved inferred review surface reusing the cart contract | Implemented | COD checkout is now linked; final shipping fee must be configured |
+| Checkout | `/checkout` | Approved inferred COD-only UI using the Delta visual system | Implemented for guest COD | No checkout Figma frame; fixed delivery fee must come from `DELTA_COD_SHIPPING_FEE_AMOUNT` |
+| Order confirmation | `/orders/[orderToken]` | Approved inferred COD confirmation using opaque token URL and human order reference | Implemented | No notification integration; operations confirmation remains manual |
 | Navigation/footer | Shared shell | Desktop header source-backed; mobile menu/footer are approved deviations | Implemented | No complete authored footer or mobile navigation frame |
 | Route states | Route-local loading/error/empty/no-results/not-found | Approved accessibility/resilience deviations | Implemented where applicable | Deterministic database failure injection remains a future test seam |
 | Circles motion | Deferred brand surface | Invalid 1×1 diagnostics only | Not implemented | Valid authored motion and resting frame required |
-| Checkout/accounts/admin/policies | Out of scope | No approved product/design contract | Not implemented | Explicit future approval and source material required |
+| Accounts/admin/policies | Out of scope | No approved product/design contract | Not implemented | Explicit future approval and source material required |
 
 Development seed content remains clearly non-production. The application must not imply that sample price, currency, variant availability, or imagery establishes live commercial inventory or policy.

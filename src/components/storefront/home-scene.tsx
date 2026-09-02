@@ -14,6 +14,7 @@ import {
 
 const INTRO_KEY = "delta-home-intro-seen";
 const DESKTOP_QUERY = "(min-width: 64rem)";
+const INTRO_BOOTSTRAP = `try{document.documentElement.dataset.homeIntroState=matchMedia("${DESKTOP_QUERY}").matches&&!matchMedia("(prefers-reduced-motion: reduce)").matches&&!sessionStorage.getItem("${INTRO_KEY}")?"play":"skip"}catch{document.documentElement.dataset.homeIntroState="skip"}`;
 
 export const HOME_FRAME_IDS = ["hero", "engineered", "philosophy", "tests", "newsletter-footer"] as const;
 export type FrameId = (typeof HOME_FRAME_IDS)[number];
@@ -76,9 +77,10 @@ function getFramePresentation(sceneId: FrameId, progress: number, reducedMotion:
 export function HomeSceneController({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLElement>(null);
   const frameRef = useRef<number | null>(null);
+  const introStartedRef = useRef(false);
   const [progress, setProgress] = useState(0);
   const [reducedMotion, setReducedMotion] = useState(false);
-  const [intro, setIntro] = useState(false);
+  const [intro, setIntro] = useState(true);
 
   useEffect(() => {
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -110,11 +112,17 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
     window.addEventListener("resize", scheduleProgress);
 
     try {
-      if (!reduced.matches && !window.sessionStorage.getItem(INTRO_KEY)) {
-        window.requestAnimationFrame(() => setIntro(true));
+      const shouldPlayIntro = introStartedRef.current || (!isFlow() && !window.sessionStorage.getItem(INTRO_KEY));
+      introStartedRef.current = shouldPlayIntro;
+      setIntro(shouldPlayIntro);
+      document.documentElement.dataset.homeIntroState = shouldPlayIntro ? "play" : "skip";
+      if (shouldPlayIntro) {
         window.sessionStorage.setItem(INTRO_KEY, "true");
       }
-    } catch { /* Session storage is unavailable; the initial false state is retained. */ }
+    } catch {
+      setIntro(false);
+      document.documentElement.dataset.homeIntroState = "skip";
+    }
 
     return () => {
       reduced.removeEventListener("change", syncPreferences);
@@ -122,6 +130,7 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
       window.removeEventListener("scroll", scheduleProgress);
       window.removeEventListener("resize", scheduleProgress);
       if (frameRef.current !== null) window.cancelAnimationFrame(frameRef.current);
+      document.documentElement.dataset.homeIntroState = "skip";
     };
   }, []);
 
@@ -132,6 +141,7 @@ export function HomeSceneController({ children }: { children: ReactNode }) {
 
   return (
     <TimelineContext.Provider value={context}>
+      <script dangerouslySetInnerHTML={{ __html: INTRO_BOOTSTRAP }} />
       <main ref={rootRef} className="home-page" aria-label="Delta landing scenes" data-home-timeline data-home-motion={isFlow ? "flow" : "scrubbed"} data-scroll-progress={progress.toFixed(4)}>
         <HomeIntro />
         <div className="prototype-track">
