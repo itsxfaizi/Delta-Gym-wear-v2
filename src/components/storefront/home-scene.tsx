@@ -7,6 +7,7 @@ import {
   useEffect,
   useRef,
   useState,
+  type AnimationEvent,
   type CSSProperties,
   type HTMLAttributes,
   type ReactNode,
@@ -234,9 +235,22 @@ function HomeIntro() {
   // unmounts it for a repeat visit, a flow viewport or reduced motion. Before
   // hydration - and with scripting off - CSS keeps it hidden unless the nonced
   // bootstrap has opted in.
-  if (!intro) return null;
+  //
+  // `played` retires the overlay when its dissolve ends. Without it the element
+  // stayed mounted for the life of the page: home-intro-dissolve leaves it at
+  // opacity 0, but home-intro-mark-arrive ends on scale(102) with `fill: both`,
+  // so the mark kept painting at roughly 30,000 x 7,500 px - a permanent
+  // full-screen composited layer that every later paint, scroll and hit-test on
+  // the home page had to carry. Driven by the animation's own animationend
+  // event, so the timing comes from the animation rather than from a guess, and
+  // the animation itself is untouched.
+  const [played, setPlayed] = useState(false);
+  if (!intro || played) return null;
   const opacity = clamp(1 - progress * 14);
-  return <div className="home-intro" data-home-intro aria-hidden="true" style={{ opacity }}><Image className="home-intro-mark" src="/design-reference/assets/delta-logo.svg" alt="" width={336} height={84} priority unoptimized /></div>;
+  const retireWhenDissolved = (event: AnimationEvent<HTMLDivElement>) => {
+    if (event.animationName === "home-intro-dissolve") setPlayed(true);
+  };
+  return <div className="home-intro" data-home-intro aria-hidden="true" style={{ opacity }} onAnimationEnd={retireWhenDissolved}><Image className="home-intro-mark" src="/design-reference/assets/delta-logo.svg" alt="" width={336} height={84} priority unoptimized /></div>;
 }
 
 export function HomeScene({ sceneId, children, className = "", ...props }: { sceneId: FrameId; children: ReactNode; className?: string } & HTMLAttributes<HTMLElement>) {

@@ -140,6 +140,34 @@ test("home presents the Figma logo intro once per browser session", async ({ pag
   expect(reloadPaint.fcp, "no first-contentful-paint entry - the page never painted").toBeGreaterThan(0);
 });
 
+test("the intro overlay leaves the document once it has finished playing", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 940 });
+  await page.addInitScript(() => window.sessionStorage.removeItem("delta-home-intro-seen"));
+  await page.goto("/");
+
+  const intro = page.locator("[data-home-intro]");
+  await expect(intro).toBeVisible();
+
+  // The mark animates to scale(102) with `fill: both`, so when the dissolve ends
+  // the overlay is invisible but its child stays painted at roughly 30,000px
+  // across - a permanent full-screen composited layer on every homepage view.
+  // Measured before this assertion existed: 29960x7455 at rest.
+  const paintedWidthWhilePlaying = await intro.locator(".home-intro-mark").evaluate((mark) => mark.getBoundingClientRect().width);
+  expect(paintedWidthWhilePlaying, "the intro mark never painted, so this test is measuring nothing").toBeGreaterThan(0);
+
+  // Deterministic wait on the animations' own finished promises - no delay, no
+  // polling. allSettled because unmounting cancels them, which is the point.
+  await page.evaluate(async () => {
+    const overlay = document.querySelector("[data-home-intro]");
+    if (!overlay) return;
+    const mark = overlay.querySelector(".home-intro-mark");
+    const animations = [...overlay.getAnimations(), ...(mark ? mark.getAnimations() : [])];
+    await Promise.allSettled(animations.map((animation) => animation.finished));
+  });
+
+  await expect(intro, "the finished intro overlay is still in the document, holding a ~30,000px layer").toHaveCount(0);
+});
+
 test("home does not visibly replay its intro after client navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 940 });
   await page.addInitScript(() => {
