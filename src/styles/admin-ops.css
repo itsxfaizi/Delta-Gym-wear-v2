@@ -1,0 +1,161 @@
+/* COD operations screen. Square, editorial, tokens from globals.css. */
+
+.ops-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0.25rem var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ops-badge[data-tone="info"] {
+  border-color: var(--color-ink);
+}
+
+.ops-badge[data-tone="warn"] {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.ops-badge[data-tone="success"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-inverse);
+}
+
+.ops-badge[data-tone="danger"] {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+  background: var(--color-canvas);
+}
+
+.ops-stack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ops-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.ops-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.ops-internal {
+  border-block-start: 3px solid var(--color-danger);
+}
+
+.ops-internal-flag {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  color: var(--color-danger);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.ops-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-list li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-canvas);
+  font-size: 0.875rem;
+}
+
+.ops-list li p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ops-when {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.ops-timeline {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ops-timeline li {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) 0 var(--space-3) var(--space-6);
+  border-inline-start: 1px solid var(--color-border);
+  position: relative;
+  font-size: 0.875rem;
+}
+
+.ops-timeline li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -4px;
+  inset-block-start: 1.15rem;
+  inline-size: 7px;
+  block-size: 7px;
+  background: var(--color-ink);
+}
+
+.ops-dialog {
+  display: grid;
+  gap: var(--space-4);
+  border-radius: 0;
+}
+
+.ops-dialog h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ops-dialog p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+.ops-copy {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.04em;
+}
+
+.ops-note-form textarea {
+  min-block-size: 5rem;
+}
+
+.admin-main :focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 2px;
+}

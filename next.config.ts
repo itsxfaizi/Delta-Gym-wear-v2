@@ -13,6 +13,11 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   reactStrictMode: true,
+  images: {
+    // The catalog copied from v1 points at picsum placeholders. Replace this host
+    // with the real image CDN once product photography lands.
+    remotePatterns: [{ protocol: "https", hostname: "picsum.photos" }],
+  },
   async headers() {
     return [
       {

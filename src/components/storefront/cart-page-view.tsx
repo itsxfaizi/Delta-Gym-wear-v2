@@ -24,7 +24,7 @@ export function CartPageView() {
         <CartLines lines={lines} update={update} />
         <aside className="cart-summary" aria-label="Cart summary">
           <div><span>Subtotal</span><strong>{formatMoney(subtotal, lines[0]?.variant.currency ?? "PKR")}</strong></div>
-          <p>Checkout, delivery, tax, and payment are not available in this launch.</p>
+          <Link className="primary-cta" href="/checkout">Checkout</Link>
           <Link className="secondary-cta" href="/shop">Continue shopping</Link>
         </aside>
       </div>

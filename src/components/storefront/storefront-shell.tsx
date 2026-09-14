@@ -5,7 +5,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 
+import { AccountMenu, type AccountState } from "@/components/account/account-menu";
 import { cartStorageKey, restoreCartLines, serializeCartLines, type ResolvedCartLine } from "@/features/catalog/cart";
+import { isVariantPurchasable, maxPurchasableQuantity } from "@/features/catalog/stock";
 import { formatMoney } from "@/features/catalog/money";
 import type { CatalogProduct, CatalogVariant } from "@/features/catalog/types";
 
@@ -22,6 +24,13 @@ type CartContextValue = {
 };
 
 const CartContext = createContext<CartContextValue | null>(null);
+
+/** Server-resolved auth state, shared with storefront client views (checkout prompts). */
+const AccountContext = createContext<AccountState>({ signedIn: false, email: null });
+
+export function useStorefrontAccount(): AccountState {
+  return useContext(AccountContext);
+}
 
 export function useCart(): CartContextValue {
   const value = useContext(CartContext);
@@ -45,12 +54,38 @@ const HOME_NAVIGATION = [
   { href: "#contact", label: "Contact Us" },
 ] as const;
 
-export function StorefrontShell({ children, catalog }: { children: React.ReactNode; catalog: readonly CatalogProduct[] }) {
+const SIGNED_OUT: AccountState = { signedIn: false, email: null };
+
+/** Account links shown inside the mobile menu panel; the header dropdown covers every breakpoint. */
+const MENU_ACCOUNT_LINKS = {
+  in: [
+    { href: "/account", label: "Account" },
+    { href: "/account/orders", label: "Orders" },
+    { href: "/account/addresses", label: "Addresses" },
+    { href: "/track-order", label: "Track an order" },
+  ],
+  out: [
+    { href: "/login", label: "Sign in" },
+    { href: "/signup", label: "Create account" },
+    { href: "/track-order", label: "Track an order" },
+  ],
+} as const;
+
+export function StorefrontShell({
+  children,
+  catalog,
+  account = SIGNED_OUT,
+}: {
+  children: React.ReactNode;
+  catalog: readonly CatalogProduct[];
+  account?: AccountState;
+}) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const navigation = isHome ? HOME_NAVIGATION : NAVIGATION;
   const [lines, setLines] = useState<CartLine[]>([]);
   const [hasRestoredCart, setHasRestoredCart] = useState(false);
+  const hasMergedServerCartRef = useRef(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
@@ -83,6 +118,42 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
     } catch {
       queueMicrotask(() => setAnnouncement("Your cart could not be saved."));
     }
+  }, [hasRestoredCart, lines]);
+
+  // Attaches the server cart to the customer once, the first time the shell mounts
+  // signed in (e.g. after a sign-in redirect). Combines local + server lines using
+  // the tested rules in src/features/cart/merge.ts; a missing database or a network
+  // failure just leaves the restored local cart as-is.
+  useEffect(() => {
+    if (!hasRestoredCart || !account.signedIn || hasMergedServerCartRef.current) return;
+    hasMergedServerCartRef.current = true;
+    (async () => {
+      try {
+        const response = await fetch("/api/cart/merge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ lines: serializeCartLines(lines) }),
+        });
+        if (!response.ok) return;
+        const body = (await response.json()) as { lines?: unknown };
+        setLines(restoreCartLines(body.lines ?? [], catalog));
+      } catch {
+        // Offline or no database: the local cart already restored above stays authoritative.
+      }
+    })();
+    // Only ever runs once per mount with the lines available at that time.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasRestoredCart, account.signedIn, catalog]);
+
+  // Best-effort mirror of the cart to the server so it survives across devices/sessions.
+  // Never blocks or throws into the UI: the local cart above is always the source of truth.
+  useEffect(() => {
+    if (!hasRestoredCart) return;
+    fetch("/api/cart", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ lines: serializeCartLines(lines) }),
+    }).catch(() => {});
   }, [hasRestoredCart, lines]);
 
   useEffect(() => {
@@ -126,12 +197,12 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
   }, [isCartOpen]);
 
   const add = (product: CatalogProduct, variant: CatalogVariant) => {
-    if (!variant.isAvailable) return false;
+    if (!isVariantPurchasable(variant)) return false;
     const key = `${product.handle}:${variant.id}`;
     setLines((current) => {
       const existing = current.find((line) => line.key === key);
       return existing
-        ? current.map((line) => line.key === key ? { ...line, quantity: Math.min(99, line.quantity + 1) } : line)
+        ? current.map((line) => line.key === key ? { ...line, quantity: maxPurchasableQuantity(variant, Math.min(99, line.quantity + 1)) } : line)
         : [...current, { key, product, variant, quantity: 1 }];
     });
     setAnnouncement(`${product.title}, ${variant.color ?? ""} ${variant.size ?? ""}, added to cart.`);
@@ -142,7 +213,7 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
   const update = (key: string, quantity: number) => {
     setLines((current) => quantity < 1
       ? current.filter((line) => line.key !== key)
-      : current.map((line) => line.key === key ? { ...line, quantity: Math.min(99, quantity) } : line));
+      : current.map((line) => line.key === key ? { ...line, quantity: maxPurchasableQuantity(line.variant, Math.min(99, quantity)) } : line));
     setAnnouncement(quantity < 1 ? "Item removed from cart." : "Cart updated.");
   };
 
@@ -151,6 +222,7 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
   const context = useMemo(() => ({ lines, count, subtotal, add, update, open: () => setIsCartOpen(true) }), [lines, count, subtotal]);
 
   return (
+    <AccountContext.Provider value={account}>
     <CartContext.Provider value={context}>
       <header ref={headerRef} className={`site-header ${isHome ? "site-header--home" : ""}`}>
         <button className="menu-trigger" type="button" aria-expanded={isMenuOpen} aria-controls="primary-navigation" onClick={() => setIsMenuOpen((open) => !open)}>
@@ -160,12 +232,19 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
           {navigation.map((item) => (
             <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} onClick={() => setIsMenuOpen(false)}>{item.label}</Link>
           ))}
+          {/* Only mounted while the mobile panel is open, so the desktop bar keeps its three links. */}
+          {isMenuOpen
+            ? (account.signedIn ? MENU_ACCOUNT_LINKS.in : MENU_ACCOUNT_LINKS.out).map((item) => (
+                <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} onClick={() => setIsMenuOpen(false)}>{item.label}</Link>
+              ))
+            : null}
         </nav>
         <Link className="brand" href="/" aria-label="Delta Gym Wear home">
           <Image src={isHome ? "/design-reference/assets/delta-logo.svg" : "/design-reference/assets/delta-logo-dark.svg"} width={147} height={37} alt="Delta Gym Wear" priority unoptimized />
         </Link>
         <div className="header-actions">
           <Link className="icon-button" href="/shop#catalog-search" aria-label="Search products"><StorefrontIcon name="search" /></Link>
+          <AccountMenu account={account} />
           <button className="icon-button cart-trigger" type="button" aria-label={`Open cart, ${count} ${count === 1 ? "item" : "items"}`} onClick={() => setIsCartOpen(true)}>
             <StorefrontIcon name={count ? "bag-filled" : "bag"} />
             <span className="cart-count" aria-hidden="true">{count}</span>
@@ -193,8 +272,8 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
                 <div className="drawer-scroll"><CartLines lines={lines} update={update} /></div>
                 <div className="drawer-footer">
                   <div className="drawer-total"><span>SUBTOTAL</span><strong>{formatMoney(subtotal, lines[0]?.variant.currency ?? "PKR")}</strong></div>
-                  <Link className="primary-cta drawer-cart-link" href="/cart" onClick={() => setIsCartOpen(false)}>View cart</Link>
-                  <p className="drawer-note">Checkout is not available in this launch.</p>
+                  <Link className="primary-cta drawer-cart-link" href="/checkout" onClick={() => setIsCartOpen(false)}>Checkout</Link>
+                  <Link className="drawer-cart-link" href="/cart" onClick={() => setIsCartOpen(false)}>View cart</Link>
                 </div>
               </>
             )}
@@ -202,6 +281,7 @@ export function StorefrontShell({ children, catalog }: { children: React.ReactNo
         </>
       ) : null}
     </CartContext.Provider>
+    </AccountContext.Provider>
   );
 }
 

@@ -1,6 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 
+import { PhilosophyMedia } from "./philosophy-media";
+
 import type { CatalogProduct } from "@/features/catalog/types";
 
 import { StorefrontFooter } from "./storefront-footer";
@@ -45,8 +47,8 @@ export function HomeView({ products }: { products: readonly CatalogProduct[] }) 
 
       <HomeScene sceneId="philosophy" id="philosophy" className="landing-philosophy" aria-labelledby="philosophy-title">
         <div className="landing-philosophy-media">
-          <Image className="landing-philosophy-secondary" src="/design-reference/assets/landing/engineered-bodybuilder.png" alt="" width={247} height={370} sizes="(max-width: 63.99rem) 35vw, 24vw" />
-          <Image className="landing-philosophy-primary" src="/design-reference/assets/landing/philosophy-athlete.png" alt="Athlete standing in a dark training studio" width={842} height={1263} sizes="(max-width: 63.99rem) 86vw, 38vw" />
+          <div className="philosophy-orbits" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /></div>
+          <PhilosophyMedia />
         </div>
         <div className="landing-philosophy-copy">
           <p>Product philosophy</p>

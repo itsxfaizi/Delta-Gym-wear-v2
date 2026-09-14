@@ -1,0 +1,399 @@
+/* Customer account + auth surfaces. Reuses the tokens defined in globals.css. */
+
+.auth-page {
+  display: grid;
+  place-items: center;
+  min-block-size: 100svh;
+  padding: clamp(2rem, 6vw, 5rem) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.auth-panel {
+  inline-size: min(100%, 28rem);
+  padding: clamp(1.5rem, 4vw, 3rem);
+  border: 1px solid var(--color-border);
+  background: var(--color-canvas);
+}
+
+.auth-brand {
+  display: block;
+  margin-block-end: var(--space-8);
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.auth-panel h1 {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.auth-intro {
+  margin: var(--space-3) 0 var(--space-8);
+  color: var(--color-ink-soft);
+}
+
+.auth-form,
+.account-form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.auth-field,
+.account-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.auth-field label,
+.account-field label,
+.account-checkbox {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-field input,
+.account-field input {
+  min-block-size: 48px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-canvas);
+  color: inherit;
+  font: inherit;
+}
+
+.auth-field input:focus-visible,
+.account-field input:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
+}
+
+.auth-field input[aria-invalid="true"],
+.account-field input[aria-invalid="true"] {
+  border-color: var(--color-danger);
+}
+
+.auth-field-error,
+.auth-form-error {
+  color: var(--color-danger);
+  font-size: 0.8125rem;
+}
+
+.auth-form-error,
+.auth-form-note {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid currentcolor;
+}
+
+.auth-form-note {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.auth-submit,
+.account-button {
+  min-block-size: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding-inline: var(--space-6);
+  border: 1px solid var(--color-ink);
+  border-radius: 0;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color var(--duration-control, 180ms) var(--ease-out);
+}
+
+.auth-submit,
+.account-button--primary {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.auth-submit:hover:not(:disabled),
+.account-button--primary:hover:not(:disabled) {
+  background: #ffc433;
+}
+
+.account-button:hover:not(:disabled) {
+  background: var(--color-surface);
+}
+
+.account-button--danger {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.auth-submit:disabled,
+.account-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.auth-links a {
+  color: var(--color-ink-soft);
+}
+
+/* Account surfaces inside the storefront shell. */
+.account-page {
+  max-inline-size: var(--content-width, 80rem);
+  margin-inline: auto;
+  padding: clamp(2.5rem, 6vw, 6rem) var(--page-gutter, var(--space-6));
+  display: grid;
+  gap: var(--space-8);
+  justify-items: start;
+}
+
+.account-page h1 {
+  margin: 0;
+  font-size: clamp(2rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+
+.account-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--space-6);
+  inline-size: 100%;
+  margin: 0;
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+}
+
+.account-summary dt {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.account-summary dd {
+  margin: var(--space-2) 0 0;
+  font-size: 1.0625rem;
+}
+
+.account-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+
+.account-nav a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.account-empty {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.order-list,
+.address-list {
+  display: grid;
+  gap: var(--space-6);
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-card,
+.address-card {
+  padding: var(--space-6);
+  border: 1px solid var(--color-border);
+}
+
+.order-card-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-4);
+  padding-block-end: var(--space-4);
+  border-block-end: 1px solid var(--color-border);
+}
+
+.order-card-header p {
+  margin: 0;
+}
+
+.order-number {
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.order-status {
+  padding: 0 var(--space-2);
+  background: var(--color-surface);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* Keyed on the tone from ORDER_STATUS_META, not on individual status names, so
+   refused and returned_to_sender are styled without a third copy of the rule. */
+.order-status[data-tone="danger"] {
+  color: var(--color-danger);
+}
+
+.order-status[data-tone="warn"] {
+  background: var(--color-accent);
+}
+
+.order-status[data-tone="success"] {
+  background: var(--color-ink);
+  color: var(--color-inverse);
+}
+
+.order-date {
+  color: var(--color-ink-soft);
+}
+
+.order-total {
+  margin-inline-start: auto !important;
+  font-weight: 700;
+}
+
+.order-items {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.order-items li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: var(--color-ink-soft);
+}
+
+.address-book {
+  display: grid;
+  gap: var(--space-8);
+  inline-size: 100%;
+}
+
+.account-form {
+  grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  padding: var(--space-6);
+  border: 1px solid var(--color-ink);
+}
+
+.account-field--wide,
+.account-checkbox,
+.account-form-actions {
+  grid-column: 1 / -1;
+}
+
+.account-checkbox {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.account-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.address-badge {
+  display: inline-block;
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-2);
+  background: var(--color-accent);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.address-name {
+  margin: 0 0 var(--space-2);
+  font-weight: 700;
+}
+
+.address-card address {
+  color: var(--color-ink-soft);
+  font-style: normal;
+}
+
+.address-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+}
+
+@media (max-width: 40rem) {
+  .account-summary,
+  .account-form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* The whole order card is one anchor to its receipt. */
+.order-card-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+.order-card:has(.order-card-link:hover) {
+  border-color: var(--color-ink);
+}
+
+.order-card-link:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+
+.order-card-cta {
+  display: inline-block;
+  margin-block-start: var(--space-4);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: underline;
+  text-underline-offset: 0.35rem;
+}

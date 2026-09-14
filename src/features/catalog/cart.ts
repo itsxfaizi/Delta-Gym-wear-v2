@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { isVariantPurchasable } from "./stock";
 import type { CatalogProduct, CatalogVariant } from "./types";
 
 export const cartLineInputSchema = z.object({
@@ -33,7 +34,7 @@ export function restoreCartLines(
 
   return parsed.data.flatMap((input) => {
     const product = catalog.find((candidate) => candidate.handle === input.productHandle);
-    const variant = product?.variants.find((candidate) => candidate.id === input.variantId && candidate.isAvailable);
+    const variant = product?.variants.find((candidate) => candidate.id === input.variantId && isVariantPurchasable(candidate));
     if (!product || !variant) return [];
     return [{ key: `${product.handle}:${variant.id}`, product, variant, quantity: input.quantity }];
   });

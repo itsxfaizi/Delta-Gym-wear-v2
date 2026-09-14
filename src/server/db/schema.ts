@@ -15,6 +15,8 @@ import {
   primaryKey,
 } from "drizzle-orm/pg-core";
 
+import type { ShippingAddress } from "@/features/orders/types";
+
 export const membershipRole = pgEnum("membership_role", [
   "owner",
   "catalog_editor",
@@ -28,6 +30,21 @@ export const productStatus = pgEnum("product_status", [
   "unpublished",
   "archived",
 ]);
+
+export const stockPolicy = pgEnum("stock_policy", ["deny", "continue"]);
+
+export const orderStatus = pgEnum("order_status", [
+  "pending",
+  "confirmed",
+  "packed",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+
+export const paymentMethod = pgEnum("payment_method", ["cod"]);
+
+export const paymentStatus = pgEnum("payment_status", ["unpaid", "paid", "refunded"]);
 
 export const tenants = pgTable(
   "tenants",
@@ -95,6 +112,8 @@ export const productVariants = pgTable(
     compareAtPriceAmount: integer("compare_at_price_amount"),
     currency: text("currency").notNull(),
     isAvailable: boolean("is_available").notNull().default(true),
+    stockQuantity: integer("stock_quantity").notNull().default(0),
+    stockPolicy: stockPolicy("stock_policy").notNull().default("deny"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -183,6 +202,172 @@ export const auditEvents = pgTable(
   ],
 );
 
+export const customers = pgTable(
+  "customers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    authUserId: uuid("auth_user_id"),
+    email: text("email").notNull(),
+    fullName: text("full_name"),
+    phone: text("phone"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("customers_tenant_id_id_unique").on(table.tenantId, table.id),
+    unique("customers_tenant_auth_user_unique").on(table.tenantId, table.authUserId),
+    unique("customers_tenant_email_unique").on(table.tenantId, table.email),
+    index("customers_tenant_idx").on(table.tenantId),
+  ],
+);
+
+export const addresses = pgTable(
+  "addresses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    customerId: uuid("customer_id"),
+    fullName: text("full_name").notNull(),
+    phone: text("phone").notNull(),
+    line1: text("line1").notNull(),
+    line2: text("line2"),
+    city: text("city").notNull(),
+    province: text("province").notNull(),
+    postalCode: text("postal_code"),
+    country: text("country").notNull().default("PK"),
+    isDefault: boolean("is_default").notNull().default(false),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("addresses_tenant_customer_idx").on(table.tenantId, table.customerId),
+    foreignKey({
+      name: "addresses_tenant_customer_fk",
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }),
+  ],
+);
+
+export const carts = pgTable(
+  "carts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    token: text("token").notNull(),
+    customerId: uuid("customer_id"),
+    currency: text("currency").notNull().default("PKR"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("carts_token_unique").on(table.token),
+    unique("carts_tenant_id_id_unique").on(table.tenantId, table.id),
+    index("carts_tenant_customer_idx").on(table.tenantId, table.customerId),
+    foreignKey({
+      name: "carts_tenant_customer_fk",
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }),
+  ],
+);
+
+export const cartItems = pgTable(
+  "cart_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    cartId: uuid("cart_id").notNull(),
+    productVariantId: uuid("product_variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "restrict" }),
+    quantity: integer("quantity").notNull(),
+    unitPriceAmount: integer("unit_price_amount").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("cart_items_cart_variant_unique").on(table.cartId, table.productVariantId),
+    index("cart_items_cart_id_idx").on(table.cartId),
+    foreignKey({
+      name: "cart_items_tenant_cart_fk",
+      columns: [table.tenantId, table.cartId],
+      foreignColumns: [carts.tenantId, carts.id],
+    }),
+  ],
+);
+
+export const orders = pgTable(
+  "orders",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id")
+      .notNull()
+      .references(() => tenants.id, { onDelete: "restrict" }),
+    orderNumber: text("order_number").notNull(),
+    customerId: uuid("customer_id"),
+    contactEmail: text("contact_email").notNull(),
+    contactPhone: text("contact_phone").notNull(),
+    shippingAddress: jsonb("shipping_address").$type<ShippingAddress>().notNull(),
+    status: orderStatus("status").notNull().default("pending"),
+    paymentMethod: paymentMethod("payment_method").notNull().default("cod"),
+    paymentStatus: paymentStatus("payment_status").notNull().default("unpaid"),
+    subtotalAmount: integer("subtotal_amount").notNull(),
+    shippingAmount: integer("shipping_amount").notNull().default(0),
+    totalAmount: integer("total_amount").notNull(),
+    currency: text("currency").notNull().default("PKR"),
+    notes: text("notes"),
+    placedAt: timestamp("placed_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("orders_order_number_unique").on(table.orderNumber),
+    unique("orders_tenant_id_id_unique").on(table.tenantId, table.id),
+    index("orders_tenant_status_idx").on(table.tenantId, table.status),
+    index("orders_tenant_placed_at_idx").on(table.tenantId, table.placedAt),
+    foreignKey({
+      name: "orders_tenant_customer_fk",
+      columns: [table.tenantId, table.customerId],
+      foreignColumns: [customers.tenantId, customers.id],
+    }),
+  ],
+);
+
+export const orderItems = pgTable(
+  "order_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    orderId: uuid("order_id").notNull(),
+    productVariantId: uuid("product_variant_id").references(() => productVariants.id, {
+      onDelete: "set null",
+    }),
+    productTitle: text("product_title").notNull(),
+    variantLabel: text("variant_label"),
+    sku: text("sku").notNull(),
+    unitPriceAmount: integer("unit_price_amount").notNull(),
+    quantity: integer("quantity").notNull(),
+    lineTotalAmount: integer("line_total_amount").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("order_items_order_id_idx").on(table.orderId),
+    foreignKey({
+      name: "order_items_tenant_order_fk",
+      columns: [table.tenantId, table.orderId],
+      foreignColumns: [orders.tenantId, orders.id],
+    }),
+  ],
+);
+
 export type Tenant = typeof tenants.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Product = typeof products.$inferSelect;
@@ -190,6 +375,18 @@ export type ProductVariant = typeof productVariants.$inferSelect;
 export type MediaReference = typeof mediaReferences.$inferSelect;
 export type ProductRevision = typeof productRevisions.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
+export type Customer = typeof customers.$inferSelect;
+export type NewCustomer = typeof customers.$inferInsert;
+export type Address = typeof addresses.$inferSelect;
+export type NewAddress = typeof addresses.$inferInsert;
+export type Cart = typeof carts.$inferSelect;
+export type NewCart = typeof carts.$inferInsert;
+export type CartItem = typeof cartItems.$inferSelect;
+export type NewCartItem = typeof cartItems.$inferInsert;
+export type OrderRow = typeof orders.$inferSelect;
+export type NewOrderRow = typeof orders.$inferInsert;
+export type OrderItemRow = typeof orderItems.$inferSelect;
+export type NewOrderItemRow = typeof orderItems.$inferInsert;
 
 export const schema = {
   tenants,
@@ -199,4 +396,10 @@ export const schema = {
   mediaReferences,
   productRevisions,
   auditEvents,
+  customers,
+  addresses,
+  carts,
+  cartItems,
+  orders,
+  orderItems,
 };

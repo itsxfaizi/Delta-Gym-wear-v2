@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useState } from "react";
 
 import { formatMoney } from "@/features/catalog/money";
+import { isVariantPurchasable, lowStockLabel } from "@/features/catalog/stock";
 import type { CatalogProduct } from "@/features/catalog/types";
 
 import { useCart } from "./storefront-shell";
@@ -33,7 +34,7 @@ export function ProductDetailView({ product }: { product: CatalogProduct }) {
 
   const submit = () => {
     if (!size) return setError("Select a size to continue.");
-    if (!variant?.isAvailable) return setError("That colour and size combination is currently unavailable.");
+    if (!variant || !isVariantPurchasable(variant)) return setError("That colour and size combination is currently unavailable.");
     if (!add(product, variant)) return setError("We couldn’t add this item. Please try again.");
     setError("");
   };
@@ -55,6 +56,7 @@ export function ProductDetailView({ product }: { product: CatalogProduct }) {
         <h1>{product.title}</h1>
         {product.rating !== null && product.reviewCount > 0 ? <div className="rating" aria-label={`${product.rating} out of 5 stars, ${product.reviewCount} reviews`}>★★★★★ <span>({product.reviewCount})</span></div> : null}
         <p className="price">{formatMoney(displayedPrice.priceAmount, displayedPrice.currency)}</p>
+        {variant && lowStockLabel(variant) ? <p className="stock-note" role="status">{lowStockLabel(variant)}</p> : null}
         {product.description ? <p className="description">{product.description}</p> : null}
         <fieldset className="variant-fieldset">
           <legend id="colour-options-label">COLOUR <span>{color}</span></legend>
@@ -66,8 +68,8 @@ export function ProductDetailView({ product }: { product: CatalogProduct }) {
           <legend id="size-options-label">SIZE {size && <span>{size}</span>}</legend>
           <div className="size-options" role="radiogroup" aria-labelledby="size-options-label">
             {sizes.map((item) => {
-              const available = product.variants.some((candidate) => candidate.color === color && candidate.size === item && candidate.isAvailable);
-              const isTabStop = item === size || (!size && available && sizes.find((candidate) => product.variants.some((productVariant) => productVariant.color === color && productVariant.size === candidate && productVariant.isAvailable)) === item);
+              const available = product.variants.some((candidate) => candidate.color === color && candidate.size === item && isVariantPurchasable(candidate));
+              const isTabStop = item === size || (!size && available && sizes.find((candidate) => product.variants.some((productVariant) => productVariant.color === color && productVariant.size === candidate && isVariantPurchasable(productVariant))) === item);
               return <button type="button" role="radio" key={item} tabIndex={isTabStop ? 0 : -1} disabled={!available} className={`size-option ${item === size ? "selected" : ""}`} aria-label={`${item}${available ? "" : " unavailable"}`} aria-checked={item === size} onKeyDown={moveRadioSelection} onClick={() => { setSize(item); setError(""); }}>{item}</button>;
             })}
           </div>

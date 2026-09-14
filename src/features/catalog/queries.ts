@@ -2,6 +2,7 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 
+import { isVariantPurchasable } from "./stock";
 import { DEVELOPMENT_SEED_PRODUCTS, validateDevelopmentSeedAssets } from "./seed";
 import type { CatalogCollection, CatalogFilters, CatalogProduct } from "./types";
 import { createDatabase } from "@/server/db";
@@ -12,7 +13,9 @@ function seedOrThrow(): readonly CatalogProduct[] {
   // Approved Phase 4A deviation: keep the exact exported Figma crops usable as
   // temporary development seed content until the Supabase catalog is provisioned.
   validateDevelopmentSeedAssets();
-  if (process.env.NODE_ENV === "production" && process.env.npm_lifecycle_event !== "build") {
+  // NEXT_PHASE is set by Next itself during any build, however it was launched;
+  // npm_lifecycle_event only exists under `npm run build` and broke `npx next build`.
+  if (process.env.NODE_ENV === "production" && process.env.NEXT_PHASE !== "phase-production-build") {
     throw new Error("Development catalog seed content is disabled in the production runtime.");
   }
   return DEVELOPMENT_SEED_PRODUCTS;
@@ -72,7 +75,9 @@ export function filterPublishedProducts(
   filters: CatalogFilters,
 ): readonly CatalogProduct[] {
   return products
-    .filter((product) => matchesCatalogQuery(product, filters.q) && matchesSelectedVariant(product, filters))
+    .filter((product) => matchesCatalogQuery(product, filters.q)
+      && matchesSelectedVariant(product, filters)
+      && (!filters.inStockOnly || product.variants.some(isVariantPurchasable)))
     .toSorted((left, right) => compareCatalogProducts(left, right, filters.sort));
 }
 
@@ -160,6 +165,8 @@ export async function getPublishedProduct(
       compareAtPriceAmount: item.compareAtPriceAmount,
       currency: item.currency,
       isAvailable: item.isAvailable,
+      stockQuantity: item.stockQuantity,
+      stockPolicy: item.stockPolicy,
     })),
   };
 }

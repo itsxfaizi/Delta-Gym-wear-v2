@@ -10,8 +10,8 @@ test("captures responsive storefront evidence", async ({ page }) => {
     { width: 1440, height: 1000, route: "/", name: "home-1440" },
     { width: 1024, height: 900, route: "/shop", name: "shop-1024" },
     { width: 1440, height: 1000, route: "/shop", name: "shop-1440" },
-    { width: 320, height: 900, route: "/products/ease-fit-trouser", name: "pdp-320" },
-    { width: 1440, height: 1000, route: "/products/ease-fit-trouser", name: "pdp-1440" },
+    { width: 320, height: 900, route: "/products/airflow-stringer-tank", name: "pdp-320" },
+    { width: 1440, height: 1000, route: "/products/airflow-stringer-tank", name: "pdp-1440" },
   ] as const;
 
   for (const capture of captures) {
@@ -23,8 +23,8 @@ test("captures responsive storefront evidence", async ({ page }) => {
   }
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto("/products/ease-fit-trouser");
-  await page.getByRole("radio", { name: "M", exact: true }).click();
+  await page.goto("/products/airflow-stringer-tank");
+  await page.getByRole("radio", { name: "L", exact: true }).click();
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await page.screenshot({ path: "output/playwright/responsive/cart-drawer-1440.png", fullPage: true });
   await page.getByRole("link", { name: "View cart" }).click();

@@ -18,6 +18,11 @@ export type TenantRole = (typeof TENANT_ROLES)[number];
 
 export type CatalogImage = { src: string; alt: string };
 
+export const STOCK_POLICIES = ["deny", "continue"] as const;
+
+/** 'deny' stops at zero stock, 'continue' allows backorder. */
+export type StockPolicy = (typeof STOCK_POLICIES)[number];
+
 export type CatalogVariant = {
   id: string;
   sku: string;
@@ -27,6 +32,9 @@ export type CatalogVariant = {
   compareAtPriceAmount: number | null;
   currency: string;
   isAvailable: boolean;
+  /** Absent means stock is not tracked for this variant. */
+  stockQuantity?: number;
+  stockPolicy?: StockPolicy;
 };
 
 export type CatalogProduct = {
@@ -57,6 +65,8 @@ export type CatalogFilters = {
   sizes: readonly string[];
   colors: readonly string[];
   sort: CatalogSort;
+  /** Drops products whose variants are all sold out. */
+  inStockOnly?: boolean;
 };
 
 export type CatalogCollection = {

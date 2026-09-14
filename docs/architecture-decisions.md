@@ -2,7 +2,9 @@
 
 **Status:** Option A approved on 2026-08-30. Deployment target, production security settings, and external commerce providers remain separate approval gates.
 
-**Scope held constant:** launch is a catalog with cart and no checkout. The public source of truth is the approved Figma storefront; the matching admin workflow manages product/catalog content. Payment, tax, shipping, returns, orders, customer accounts, and checkout are future boundaries.
+**Scope held constant:** the public source of truth is the approved Figma storefront; the matching admin workflow manages product/catalog content.
+
+> **Superseded (2026-09-14):** the line above originally read "launch is a catalog with cart and no checkout … payment, tax, shipping, returns, orders, customer accounts, and checkout are future boundaries." That was true when Option A was drafted and is no longer true. See "Superseded scope: checkout and accounts shipped" at the end of this document for what actually shipped and why the boundary moved.
 
 ## Constraints carried forward
 
@@ -156,3 +158,33 @@ Option-specific risks: Supabase requires careful separation between user-scoped 
 Approve **Option A — Supabase-first, custom Delta admin** unless the primary objective becomes minimizing custom editor work. It best balances the Figma-faithful storefront, a future Figma-faithful admin, low operational surface area, TypeScript ownership, and a clean seam for checkout later. Choose Option B when a conventional CMS editor and built-in collection access controls are more valuable than full admin visual control.
 
 The recommendation is now approved as Option A. The binding decision record is [ADR-001-supabase-first-foundation.md](decisions/ADR-001-supabase-first-foundation.md). Provider-specific production settings, final legal/retention policy, and future commerce providers remain separate approval gates.
+
+## Superseded scope: checkout and accounts shipped (2026-09-14)
+
+The "catalog with cart, no checkout" boundary above was the real decision at the time this document was drafted (2026-08-30). It has since been superseded by build-out: checkout, orders, customer accounts, and a COD operations console all exist in the codebase today. This section records what was actually decided and built, so the document matches the app.
+
+**Checkout is cash-on-delivery only; there is no payment gateway.** Every order carries `payment_method = 'cod'` (a single-value pg enum, `src/server/db/schema.ts`) and `payment_status` starts at `'unpaid'` and can move to `'paid'` or `'refunded'` once cash is collected on delivery. No card, wallet, or hosted-checkout provider is integrated. Guest checkout is fully supported — an order does not require a customer account, only a shipping address and phone number.
+
+**Customer accounts run on Supabase Auth**, not the future "Cart contract, later Order/Payment adapters" language above. Supabase issues the session; `/auth/callback` (`src/app/auth/callback/route.ts`) exchanges the one-time code from a signup-confirmation or password-recovery email for a session cookie — without it those emails dead-end on a page that ignores the code. `/account` exposes order history and an address book backed by the `customers` and `addresses` tables (`src/server/db/schema.ts`). Signup, login, and password reset are implemented under the `(auth)` route group.
+
+**A COD operations console lives at `/admin`** (`src/app/(admin)/admin/**`), gated by `resolveAdminAccess()` (`src/server/admin/guard.ts`), which is fail-closed: no session, no database, no tenant, no membership, a suspended membership, or a role outside `ADMIN_ROLES` all resolve to forbidden rather than silently granting access. The console covers:
+
+- a dashboard with KPIs and recharts charts (`src/components/admin/charts/*`: revenue/orders, top products, status distribution, delivery trend);
+- product CRUD (`/admin/products`);
+- order lifecycle management, a confirmation-call workflow, courier/tracking fields, and internal notes (`/admin/orders`);
+- a customers view with a COD risk signal (`/admin/customers`);
+- bulk order status changes (`src/features/admin/bulk-actions.ts`);
+- team/membership management (`/admin/team`);
+- stock adjustment from the products screen.
+
+**Nine COD statuses are centralized in `src/features/orders/status.ts`** (`COD_STATUSES`): `pending`, `confirmation_required`, `confirmed`, `packed`, `shipped`, `delivered`, `refused`, `returned_to_sender`, `cancelled`. Three of them — `confirmation_required`, `refused`, and `returned_to_sender` — cannot be stored in the `order_status` pg enum, which only has `pending | confirmed | packed | shipped | delivered | cancelled`. This was a deliberate shortcut to avoid an enum/schema migration mid-build, not an oversight:
+
+- The three non-persistable statuses live in an **in-memory ops adapter** (`src/server/ops/store.ts`, a module-level `Map`) instead of a database column. `persistableStatus()` maps each one to the nearest real enum value for the column that is actually written (`confirmation_required → pending`, `refused`/`returned_to_sender → shipped`), and the ops layer overlays the real in-memory status at read time so the admin UI shows the correct COD status.
+- **This adapter is per-process and resets on restart or redeploy.** Nothing is shared between server instances, and nothing survives a deploy. In a multi-instance or serverless deployment (which Vercel is), two requests can legitimately see different in-memory state for the same order.
+- This is accepted as a known, documented shortcut, not a design goal. Retiring it requires a real schema change: add `confirmation_required`, `refused`, and `returned_to_sender` to the `order_status` pg enum (or otherwise widen the column) and add a durable `order_ops` table (call attempts, courier/tracking, internal notes) behind the existing `OrderOpsRepository` interface (`src/server/ops/types.ts`), which was written so no caller changes when the backing store does.
+
+**The v2 drizzle tables share the same Supabase Postgres database as a separate v1 Prisma application.** v1's tables use quoted PascalCase identifiers (e.g. `"Product"`, `"Category"`) and hold real production data; v2's drizzle tables use lowercase snake_case identifiers (`products`, `product_variants`, …). They coexist in the same database because the naming does not collide — this was a deliberate choice to avoid standing up a second database for the same catalog domain, not an accident. `scripts/copy-v1-catalog.mjs` performs a one-way, idempotent copy of the v1 catalog into the v2 tables (keyed on `(tenant_id, handle)` for products, `(tenant_id, sku)` for variants, `(tenant_id, object_key)` for media); it never writes back to the v1 tables, and v1's own RLS policies are left untouched.
+
+**Cart is server-side**, not purely client state. `carts` and `cart_items` tables (`src/server/db/schema.ts`) back an httpOnly, `SameSite=Lax` cart token cookie (`src/server/cart/token.ts`, `delta-cart-token`, marked `secure` in production) that identifies a guest or signed-in cart. `localStorage` remains the first-paint path in the browser before the server round-trip resolves, not the source of truth.
+
+**Order confirmation email goes through a `Mailer` interface** (`src/server/mail/types.ts`), with two implementations: `ConsoleMailer` (`src/server/mail/console-mailer.ts`), which just logs the message, and `HttpMailer` (`src/server/mail/http-mailer.ts`), a Resend-style HTTP POST adapter. `getMailer()` (`src/server/mail/index.ts`) selects `HttpMailer` only when `MAIL_PROVIDER=http` plus `MAIL_API_KEY` and `MAIL_FROM` are all set; otherwise — including today, in every environment, since no provider key exists — it falls back to `ConsoleMailer`. No outbound email is actually sent in the current deployment.

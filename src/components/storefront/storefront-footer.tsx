@@ -13,8 +13,8 @@ export const StorefrontFooter = forwardRef<HTMLElement, { compact?: boolean }>(f
         <address><a href="tel:+923285386793">+92-328-5386793</a><a href="mailto:info@deltagymwear.com">info@deltagymwear.com</a><a href="https://deltagymwear.com">www.deltagymwear.com</a></address>
       </section>
       <nav aria-label="Shop links"><strong>Shop</strong><Link href="/shop">Compression T-shirts</Link><Link href="/shop">Performance Leggings</Link><Link href="/shop">Training Tank Tops</Link><Link href="/shop">Functional Trousers</Link><Link href="/shop">All Products</Link></nav>
-      <nav aria-label="Brand links"><strong>Brand</strong><Link href="/#philosophy">About Delta</Link></nav>
-      {!compact ? <nav aria-label="Support links"><strong>Support</strong><Link href="/#contact">Contact Us</Link><span>Sizing Guide</span><span>Returns</span><span>FAQs</span></nav> : null}
+      <nav aria-label="Brand links"><strong>Brand</strong><Link href="/#philosophy">About Delta</Link>{compact ? <Link href="/track-order">Track your order</Link> : null}</nav>
+      {!compact ? <nav aria-label="Support links"><strong>Support</strong><Link href="/track-order">Track your order</Link><Link href="/#contact">Contact Us</Link><span>Sizing Guide</span><span>Returns</span><span>FAQs</span></nav> : null}
       <p className="footer-copyright">DELTA © 2023 All Rights Reserved</p>
     </footer>
   );

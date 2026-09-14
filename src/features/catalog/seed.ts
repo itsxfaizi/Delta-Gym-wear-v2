@@ -28,11 +28,11 @@ export const DEVELOPMENT_SEED_PRODUCTS: readonly CatalogProduct[] = [
     catalogImage: { src: "/design-reference/assets/product-card-normal.png", alt: "Ease Fit Trouser catalog card — development seed crop" },
     catalogHoverImage: { src: "/design-reference/assets/product-card-hover.png", alt: "Ease Fit Trouser catalog card hover — development seed crop" },
     variants: [
-      { id: "dev-ease-black-s", sku: "DEV-EFT-BLK-S", color: "Black", size: "S", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true },
-      { id: "dev-ease-black-m", sku: "DEV-EFT-BLK-M", color: "Black", size: "M", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true },
-      { id: "dev-ease-black-l", sku: "DEV-EFT-BLK-L", color: "Black", size: "L", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: false },
-      { id: "dev-ease-sand-s", sku: "DEV-EFT-SND-S", color: "Sand", size: "S", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true },
-      { id: "dev-ease-sand-m", sku: "DEV-EFT-SND-M", color: "Sand", size: "M", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true },
+      { id: "dev-ease-black-s", sku: "DEV-EFT-BLK-S", color: "Black", size: "S", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true, stockQuantity: 12, stockPolicy: "deny" },
+      { id: "dev-ease-black-m", sku: "DEV-EFT-BLK-M", color: "Black", size: "M", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true, stockQuantity: 4, stockPolicy: "deny" },
+      { id: "dev-ease-black-l", sku: "DEV-EFT-BLK-L", color: "Black", size: "L", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: false, stockQuantity: 0, stockPolicy: "deny" },
+      { id: "dev-ease-sand-s", sku: "DEV-EFT-SND-S", color: "Sand", size: "S", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true, stockQuantity: 0, stockPolicy: "continue" },
+      { id: "dev-ease-sand-m", sku: "DEV-EFT-SND-M", color: "Sand", size: "M", priceAmount: 599900, compareAtPriceAmount: null, currency: "PKR", isAvailable: true, stockQuantity: 25, stockPolicy: "deny" },
     ],
   },
 ];

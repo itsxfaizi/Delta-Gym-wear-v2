@@ -394,9 +394,33 @@ p { text-wrap: pretty; }
    absent until its original export is supplied. */
 .prototype-frame--philosophy { display: grid; grid-template-columns: minmax(18rem, 0.98fr) minmax(22rem, 0.92fr); align-items: center; gap: clamp(3rem, 10vw, 11rem); padding: clamp(4rem, 8vh, 7rem) var(--page-gutter); }
 .landing-philosophy-media { position: relative; inline-size: min(100%, 36rem); min-block-size: min(70vh, 42rem); justify-self: center; }
-.landing-philosophy-media > img { display: block; block-size: auto; }
-.landing-philosophy-primary { position: relative; z-index: 1; inline-size: min(88%, 31rem); margin-inline-start: 0; border-radius: 0; }
-.landing-philosophy-secondary { position: absolute; z-index: 0; inset-block-start: 8%; inset-inline-end: 2%; inline-size: min(52%, 18rem); block-size: auto; object-fit: cover; transform: rotate(7deg); transform-origin: center; }
+.philosophy-swap { position: relative; display: block; inline-size: 100%; padding: 0; border: 0; background: none; text-align: start; }
+.landing-philosophy-primary { position: relative; z-index: 2; display: block; inline-size: min(88%, 31rem); }
+.landing-philosophy-secondary { position: absolute; z-index: 1; display: block; inset-block-start: 8%; inset-inline-end: 2%; inline-size: min(52%, 18rem); transform: rotate(7deg); transform-origin: center; }
+.philosophy-swap img { display: block; inline-size: 100%; block-size: auto; border-radius: 0; transition: opacity 520ms var(--ease-out); }
+/* The lead photograph keeps the slot in flow; the alternate is stacked on top of it. */
+.philosophy-swap img + img { position: absolute; inset: 0; block-size: 100%; object-fit: cover; }
+.philosophy-swap img[data-visible="false"] { opacity: 0; }
+
+/* Figma `Circles`: concentric rings with orbiting markers behind the media. */
+.philosophy-orbits { position: absolute; z-index: 0; inset: 0; display: grid; place-items: center; pointer-events: none; }
+.philosophy-orbits i { position: absolute; aspect-ratio: 1; inline-size: var(--orbit-size); border: var(--orbit-ring, 1px solid color-mix(in srgb, var(--color-ink) 14%, transparent)); border-radius: 50%; animation: philosophy-orbit var(--orbit-duration) linear infinite var(--orbit-direction, normal); animation-delay: var(--orbit-delay, 0s); }
+.philosophy-orbits i::after { content: ""; position: absolute; inset-block-start: calc(var(--orbit-dot) / -2); inset-inline-start: calc(50% - var(--orbit-dot) / 2); inline-size: var(--orbit-dot); block-size: var(--orbit-dot); border-radius: 50%; background: radial-gradient(circle at 32% 30%, rgb(255 255 255 / 0.55), transparent 58%), var(--orbit-color); }
+/* Three rings; each marker is one rotating element, its start angle set by a negative delay. */
+.philosophy-orbits i:nth-child(-n+3) { --orbit-size: 128%; --orbit-duration: 11s; }
+.philosophy-orbits i:nth-child(n+4):nth-child(-n+5) { --orbit-size: 108%; --orbit-duration: 8s; --orbit-direction: reverse; }
+.philosophy-orbits i:nth-child(n+6) { --orbit-size: 88%; --orbit-duration: 5.5s; }
+.philosophy-orbits i:nth-child(2), .philosophy-orbits i:nth-child(3), .philosophy-orbits i:nth-child(5), .philosophy-orbits i:nth-child(7) { --orbit-ring: none; }
+.philosophy-orbits i:nth-child(1) { --orbit-color: #2f8f8a; --orbit-dot: 0.62rem; --orbit-delay: -1.2s; }
+.philosophy-orbits i:nth-child(2) { --orbit-color: #8f4a42; --orbit-dot: 0.5rem; --orbit-delay: -5.6s; }
+.philosophy-orbits i:nth-child(3) { --orbit-color: #8f4a42; --orbit-dot: 0.5rem; --orbit-delay: -9.8s; }
+.philosophy-orbits i:nth-child(4) { --orbit-color: #8f4a42; --orbit-dot: 0.58rem; --orbit-delay: -2.5s; }
+.philosophy-orbits i:nth-child(5) { --orbit-color: #8c86c8; --orbit-dot: 0.48rem; --orbit-delay: -7.5s; }
+.philosophy-orbits i:nth-child(6) { --orbit-color: #2f8f8a; --orbit-dot: 0.58rem; --orbit-delay: -1.8s; }
+.philosophy-orbits i:nth-child(7) { --orbit-color: #8f4a42; --orbit-dot: 0.48rem; --orbit-delay: -5.2s; }
+@keyframes philosophy-orbit { to { transform: rotate(1turn); } }
+/* Rings extend past the media box, so they would force horizontal scroll on narrow viewports. */
+@media (max-width: 63.99rem) { .philosophy-orbits { display: none; } }
 .landing-philosophy-copy { max-inline-size: 38rem; }
 .landing-philosophy-copy > p:first-child, .landing-newsletter > p:first-child { margin: 0 0 var(--space-3); color: #b17b00; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
 .landing-philosophy-copy h2 { margin: 0; font-size: clamp(2.75rem, 5.2vw, 5.5rem); font-weight: 800; letter-spacing: -0.035em; line-height: 0.94; text-transform: uppercase; }

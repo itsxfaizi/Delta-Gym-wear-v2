@@ -2,16 +2,25 @@ import "server-only";
 
 import { z } from "zod";
 
+/**
+ * A key present but blank (.env.example ships every optional value empty) is the
+ * same as unset. Without this an empty DATABASE_URL fails .min(1) and takes down
+ * every route that reads the env, rather than falling back to the no-database path.
+ */
+function blankAsUndefined<T extends z.ZodTypeAny>(schema: T) {
+  return z.preprocess((value) => (typeof value === "string" && value.trim() === "" ? undefined : value), schema);
+}
+
 const envSchema = z
   .object({
     NEXT_PUBLIC_SUPABASE_URL: z.string().url(),
     NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().min(1),
-    SUPABASE_SERVICE_ROLE_KEY: z.string().min(1).optional(),
-    DATABASE_URL: z.string().min(1).optional(),
-    DELTA_TENANT_ID: z.string().uuid().optional(),
+    SUPABASE_SERVICE_ROLE_KEY: blankAsUndefined(z.string().min(1).optional()),
+    DATABASE_URL: blankAsUndefined(z.string().min(1).optional()),
+    DELTA_TENANT_ID: blankAsUndefined(z.string().uuid().optional()),
     APP_URL: z.string().url(),
-    LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
-    NEXT_PUBLIC_APP_NAME: z.string().min(1).default("Delta Gym Wear"),
+    LOG_LEVEL: blankAsUndefined(z.enum(["debug", "info", "warn", "error"]).default("info")),
+    NEXT_PUBLIC_APP_NAME: blankAsUndefined(z.string().min(1).default("Delta Gym Wear")),
   })
   .superRefine((env, context) => {
     if (

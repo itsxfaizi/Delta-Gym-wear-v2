@@ -1,0 +1,321 @@
+/* Cash-on-delivery checkout + order receipt. Reuses the tokens from globals.css. */
+
+.checkout-page,
+.order-receipt {
+  max-inline-size: 78rem;
+  margin-inline: auto;
+  padding: clamp(2rem, 6vw, 5rem) var(--page-gutter) clamp(3rem, 8vw, 6rem);
+  color: var(--color-ink);
+}
+
+.checkout-heading h1 {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.checkout-heading p {
+  margin: 0;
+  color: var(--color-ink-soft);
+}
+
+.checkout-layout {
+  display: grid;
+  gap: clamp(1.5rem, 4vw, 3rem);
+  margin-block-start: var(--space-8);
+  align-items: start;
+}
+
+@media (min-width: 60rem) {
+  .checkout-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(18rem, 1fr);
+  }
+
+  .checkout-summary {
+    position: sticky;
+    inset-block-start: var(--space-8);
+  }
+}
+
+.checkout-sections {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.checkout-section {
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid var(--color-border);
+  background: var(--color-canvas);
+}
+
+.checkout-section h2,
+.checkout-summary h2 {
+  margin: 0 0 var(--space-4);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.checkout-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+@media (min-width: 40rem) {
+  .checkout-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.checkout-field {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.checkout-field label {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.checkout-field input,
+.checkout-field textarea {
+  min-block-size: 44px;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: var(--color-surface);
+  color: inherit;
+  font: inherit;
+  transition: border-color var(--duration-control) var(--ease-out);
+}
+
+.checkout-field textarea {
+  resize: vertical;
+}
+
+.checkout-field input:focus-visible,
+.checkout-field textarea:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.checkout-field input[aria-invalid="true"],
+.checkout-field textarea[aria-invalid="true"] {
+  border-color: #b3261e;
+}
+
+.checkout-field-error,
+.checkout-form-error {
+  color: #b3261e;
+  font-size: 0.8125rem;
+}
+
+.checkout-summary {
+  display: grid;
+  gap: var(--space-4);
+  padding: clamp(1rem, 3vw, 1.75rem);
+  border: 1px solid var(--color-ink);
+  background: var(--color-surface);
+}
+
+.checkout-summary-lines {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.checkout-summary-lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  font-size: 0.875rem;
+}
+
+.checkout-totals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--color-border);
+}
+
+.checkout-totals div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.checkout-totals dt,
+.checkout-totals dd {
+  margin: 0;
+}
+
+.checkout-total {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.checkout-payment-note {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.checkout-submit {
+  min-block-size: 48px;
+  border: 0;
+  background: var(--color-accent);
+  color: var(--color-ink);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity var(--duration-control) var(--ease-out);
+}
+
+.checkout-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.checkout-back {
+  color: inherit;
+  font-size: 0.75rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.order-receipt .checkout-section {
+  margin-block-start: var(--space-8);
+}
+
+.order-receipt .order-status {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.order-address {
+  font-style: normal;
+  line-height: 1.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .checkout-field input,
+  .checkout-field textarea,
+  .checkout-submit {
+    transition: none;
+  }
+}
+
+/* Optional sign-in nudge above the guest checkout form. */
+.checkout-signin {
+  display: grid;
+  gap: var(--space-2);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--color-ink);
+  background: var(--color-surface);
+}
+
+.checkout-signin p {
+  margin: 0;
+}
+
+.checkout-signin p:first-child {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.checkout-signin-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.checkout-signin-links a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.checkout-signin-note {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+/* Receipt footer: next steps after an order is placed. */
+.receipt-next {
+  display: grid;
+  gap: var(--space-2);
+  margin-block-start: var(--space-8);
+  padding: clamp(1rem, 3vw, 1.5rem);
+  border: 1px solid var(--color-border);
+}
+
+.receipt-next h2 {
+  margin: 0 0 var(--space-2);
+  font-size: 0.75rem;
+  font-weight: 750;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.receipt-next p {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.875rem;
+}
+
+.receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin-block-start: var(--space-4);
+}
+
+.receipt-actions a {
+  min-block-size: 44px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.receipt-courier dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.receipt-courier dl div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.receipt-courier dt {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+.receipt-courier dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}

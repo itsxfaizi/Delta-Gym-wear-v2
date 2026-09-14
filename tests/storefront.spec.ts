@@ -53,14 +53,14 @@ test("mobile renders the prototype frames as normal flowing sections", async ({ 
 
 test("catalog search, filters, and sort stay in the URL", async ({ page }) => {
   await page.goto("/shop");
-  await page.getByRole("searchbox", { name: "Search products" }).fill("Ease");
+  await page.getByRole("searchbox", { name: "Search products" }).fill("Airflow");
   await page.getByRole("button", { name: "Search", exact: true }).click();
-  await expect(page).toHaveURL(/q=Ease/);
+  await expect(page).toHaveURL(/q=Airflow/);
   await page.getByRole("checkbox", { name: "M" }).check();
   await expect(page).toHaveURL(/size=m/);
   await page.getByLabel("Sort products").selectOption("price-desc");
   await expect(page).toHaveURL(/sort=price-desc/);
-  await expect(page.getByRole("link", { name: /Ease Fit Trouser/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Airflow Stringer Tank/ }).first()).toBeVisible();
 });
 
 test("catalog no-results state clears back to the published catalog", async ({ page }) => {
@@ -68,33 +68,33 @@ test("catalog no-results state clears back to the published catalog", async ({ p
   await expect(page.getByRole("heading", { name: "No products match" })).toBeVisible();
   await page.getByRole("link", { name: "Clear filters" }).click();
   await expect(page).toHaveURL(/\/shop$/);
-  await expect(page.getByRole("link", { name: /Ease Fit Trouser/ }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: /Airflow Stringer Tank/ }).first()).toBeVisible();
 });
 
 test("catalog to product to cart drawer and cart page", async ({ page }) => {
   await page.goto("/shop");
-  await page.getByRole("link", { name: "Ease Fit Trouser" }).first().click();
-  await expect(page.getByRole("heading", { name: "Ease Fit Trouser" })).toBeVisible();
-  await page.getByRole("radio", { name: "M", exact: true }).click();
+  await page.getByRole("link", { name: "Airflow Stringer Tank" }).first().click();
+  await expect(page.getByRole("heading", { name: "Airflow Stringer Tank" })).toBeVisible();
+  await page.getByRole("radio", { name: "L", exact: true }).click();
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await expect(page.getByRole("dialog", { name: /YOUR CART/ })).toBeVisible();
-  await expect(page.getByText("Black / M")).toBeVisible();
+  await expect(page.getByText("Black / L")).toBeVisible();
   await page.getByRole("link", { name: "View cart" }).click();
   await expect(page).toHaveURL(/\/cart$/);
   await expect(page.getByRole("heading", { name: "Your cart" })).toBeVisible();
-  await expect(page.getByText("Black / M")).toBeVisible();
+  await expect(page.getByText("Black / L")).toBeVisible();
 });
 
 test("unavailable variant reports an accessible error", async ({ page }) => {
-  await page.goto("/products/ease-fit-trouser");
+  await page.goto("/products/airflow-stringer-tank");
   await expect(page.getByRole("radio", { name: "L unavailable" })).toBeDisabled();
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await expect(page.getByText("Select a size to continue.")).toBeVisible();
 });
 
 test("variant radio groups support arrow-key selection", async ({ page }) => {
-  await page.goto("/products/ease-fit-trouser");
-  const medium = page.getByRole("radio", { name: "M", exact: true });
+  await page.goto("/products/airflow-stringer-tank");
+  const medium = page.getByRole("radio", { name: "L", exact: true });
   await medium.focus();
   await medium.press("ArrowLeft");
   await expect(page.getByRole("radio", { name: "S", exact: true })).toHaveAttribute("aria-checked", "true");
@@ -121,30 +121,31 @@ test("unknown collections and products use the not-found experience", async ({ p
 });
 
 test("cart persists across reloads", async ({ page }) => {
-  await page.goto("/products/ease-fit-trouser");
-  await page.getByRole("radio", { name: "M", exact: true }).click();
+  await page.goto("/products/airflow-stringer-tank");
+  await page.getByRole("radio", { name: "L", exact: true }).click();
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await page.getByRole("button", { name: "Close cart" }).click();
   await page.reload();
   await page.getByRole("button", { name: /Open cart, 1 item/ }).click();
-  await expect(page.getByText("Black / M")).toBeVisible();
+  await expect(page.getByText("Black / L")).toBeVisible();
 });
 
 test("product metadata and structured data exclude unverified ratings", async ({ page }) => {
-  await page.goto("/products/ease-fit-trouser");
-  await expect(page).toHaveTitle(/Ease Fit Trouser/);
+  await page.goto("/products/airflow-stringer-tank");
+  await expect(page).toHaveTitle(/Airflow Stringer Tank/);
   const structuredData = await page.locator('script[type="application/ld+json"]').textContent();
   expect(structuredData).toContain('"@type":"Product"');
   expect(structuredData).not.toContain("aggregateRating");
-  expect(structuredData).not.toContain('"@type":"Offer"');
+  expect(structuredData).toContain('"@type":"Offer"');
+  expect(structuredData).toContain('"priceCurrency":"PKR"');
 });
 
 test("tampered and unavailable persisted cart lines fail closed", async ({ page }) => {
   await page.goto("/shop");
   await page.evaluate(() => {
     window.localStorage.setItem("delta-cart:public", JSON.stringify([
-      { productHandle: "ease-fit-trouser", variantId: "dev-ease-black-l", quantity: 1, fabricatedPrice: 1 },
-      { productHandle: "ease-fit-trouser", variantId: "missing", quantity: 1 },
+      { productHandle: "airflow-stringer-tank", variantId: "not-a-real-variant", quantity: 1, fabricatedPrice: 1 },
+      { productHandle: "airflow-stringer-tank", variantId: "missing", quantity: 1 },
     ]));
   });
   await page.reload();
