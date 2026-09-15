@@ -4,6 +4,8 @@ import type { AccountState } from "@/components/account/account-menu";
 import { listPublishedProducts } from "@/features/catalog/queries";
 import { getAuthenticatedUser } from "@/server/auth/session";
 
+export const dynamic = "force-dynamic";
+
 /** Resolved here so the header never has to ask Supabase from the client. */
 async function loadAccountState(): Promise<AccountState> {
   try {
