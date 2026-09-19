@@ -11,9 +11,8 @@ const HERO_VIDEO = "/design-reference/assets/landing/hero-run.mp4";
  * with `priority`; the looping clip is layered on top only once the client confirms motion
  * is allowed, so reduced-motion users never download or paint it.
  *
- * WCAG 2.2.2 (Pause, Stop, Hide): the clip auto-plays and loops for longer than 5s, so it
- * carries a visible pause control. Suppressing it under prefers-reduced-motion does not
- * satisfy 2.2.2 on its own — the control is required for everyone who sees the motion.
+ * Its pause control stays out of the visual composition, but remains keyboard and screen-reader
+ * accessible for WCAG 2.2.2.
  */
 export function LandingHeroMedia() {
   const [motionAllowed, setMotionAllowed] = useState(false);
@@ -35,8 +34,6 @@ export function LandingHeroMedia() {
     else video.pause();
   };
 
-  // The media layer sits at z-index -2 behind the hero copy, so the control cannot live inside it.
-  // It renders as a sibling and positions against `.landing-hero` (position: relative).
   return (
     <>
       <div className="landing-hero-media" aria-hidden="true">
@@ -52,14 +49,13 @@ export function LandingHeroMedia() {
             playsInline
             poster={HERO_POSTER}
             preload="metadata"
-            // Keep the label in sync with the real element state, not just our click handler.
             onPlay={() => setPlaying(true)}
             onPause={() => setPlaying(false)}
           />
         ) : null}
       </div>
       {motionAllowed ? (
-        <button type="button" className="landing-hero-motion-toggle" onClick={toggle}>
+        <button type="button" className="motion-accessibility-toggle" onClick={toggle}>
           {playing ? "Pause background video" : "Play background video"}
         </button>
       ) : null}

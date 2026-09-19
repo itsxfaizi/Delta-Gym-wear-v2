@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { E2E_EMAIL_DOMAIN } from "./db";
 import { placeOrder } from "./helpers";
 
 /**
@@ -7,7 +8,7 @@ import { placeOrder } from "./helpers";
  * track. Orders created here use a recognisable contact email so they can be
  * told apart from real ones.
  */
-const EMAIL = "e2e.buyer@deltagymwear.com";
+const EMAIL = `e2e.buyer@${E2E_EMAIL_DOMAIN}`;
 const PHONE = "03005551234";
 
 test("a guest can buy with cash on delivery and then track the order", async ({ page }) => {

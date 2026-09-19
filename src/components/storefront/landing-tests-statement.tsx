@@ -15,9 +15,8 @@ import "@/features/landing/landing-tests.css";
  * The owner asked for it to run on its own, so this is a 2s-per-statement autoplay. That is a
  * deliberate departure from the prototype, recorded here so nobody later "fixes" it back.
  *
- * Because it now moves without the user asking and loops for longer than 5s, WCAG 2.2.2
- * applies and it needs a pause control. Hence the button — and hence this being a client
- * component at all, since that toggle is the only state in the whole section.
+ * Its pause control stays out of the visual composition, but remains keyboard and screen-reader
+ * accessible for WCAG 2.2.2. Reduced-motion users receive the static list.
  *
  * All three statements are always in the DOM as a list, in reading order, with no aria-live:
  * an auto-rotating region would announce over whatever the user is reading. Casing is
@@ -60,11 +59,11 @@ export function LandingTestsStatement({ style }: { style?: CSSProperties }) {
       </div>
       <button
         type="button"
-        className="landing-tests-pause"
+        className="motion-accessibility-toggle"
         onClick={() => setPaused((value) => !value)}
         aria-pressed={paused}
       >
-        {paused ? "Play" : "Pause"}
+        {paused ? "Play statement animation" : "Pause statement animation"}
       </button>
     </div>
   );

@@ -26,10 +26,9 @@
    The 300ms roll is the operator's trackpad gesture length from the measurement notes; it
    is the closest thing to an authored transition the recording contains.
 
-   Still no scroll listener, no rAF loop and no interval: one CSS animation. The only JS is
-   the pause toggle WCAG 2.2.2 requires once the thing moves by itself.
+   Still no scroll listener, no rAF loop and no interval: one CSS animation.
    Below 48rem, and under prefers-reduced-motion, the base rules paint all three statements
-   as a plain static list and the pause control is hidden — nothing is moving to pause. */
+   as a plain static list. */
 
 /* ---- Resting state: every statement, statically, in the DOM and readable. ---- */
 /* The display type lives on the WINDOW, not the roll, because the window's clip height is
@@ -76,15 +75,11 @@
   .landing-scene .landing-tests-roll .landing-tests-statement { color: transparent; }
 }
 
-/* These two are the OFF state, and they sit here rather than below the @media on purpose:
+/* This is the OFF state, and it sits here rather than below the @media on purpose:
    the rules that switch them on are the same specificity, so whichever is declared last wins.
-   Declared after, they beat the @media and the clone and the pause button stay hidden even
-   when the roll is running. */
+   Declared after, they beat the @media and the clone stays hidden when the roll is static. */
 /* A duplicated statement would just read twice in the static list. */
 .landing-scene .landing-tests-statement--clone { display: none; }
-/* Pause control, hidden wherever nothing animates: a control that pauses nothing is worse
-   than no control. Deliberately quiet — this is a decorative rotation, not a media player. */
-.landing-scene .landing-tests-pause { display: none; }
 
 /* ---- The timed roll. ---- */
 /* Below 48rem, and under reduced motion, the section stays in normal flow with all three
@@ -111,28 +106,7 @@
   .landing-scene .landing-tests-roll .landing-tests-statement { block-size: 2lh; }
   /* The loop clone only makes sense while the column is looping. */
   .landing-scene .landing-tests-statement--clone { display: revert; }
-  .landing-scene .landing-tests-pause { display: inline-flex; }
 }
-
-.landing-scene .landing-tests-pause {
-  align-items: center;
-  margin-block-start: var(--space-4);
-  padding: var(--space-2) var(--space-4);
-  border: 1px solid rgb(255 255 255 / 0.28);
-  border-radius: 999px;
-  background: none;
-  color: var(--color-on-invert-muted);
-  font: inherit;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  line-height: 1;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: border-color var(--duration-control, 160ms) var(--ease-out),
-              color var(--duration-control, 160ms) var(--ease-out);
-}
-.landing-scene .landing-tests-pause:hover { border-color: rgb(255 255 255 / 0.6); color: var(--color-on-invert); }
 
 @keyframes tests-roll {
   /* One statement is 2lh, so each step travels 2lh and the column ends at (count) x -2lh,

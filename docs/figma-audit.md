@@ -323,3 +323,9 @@ corner arcs. This removes the export's own padding, not any of the photograph.
 **Request outside file ownership:** re-export `philosophy-athlete.png` from `127:3240` without its
 white matte (and, ideally, at the same crop ratio as the other stack entry). Once supplied, the
 ratio correction in `philosophy-stack.css` can be dropped.
+
+### Owner-approved motion control removal — 2026-09-19
+
+The owner requested removal of the visible hero-video and test-statement pause controls while
+keeping both animations running. The controls are excluded from the visual composition and appear
+only when reached by keyboard; screen-reader access and `prefers-reduced-motion` remain intact.
