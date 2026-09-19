@@ -1,0 +1,145 @@
+/* Philosophy photo stack + orbit artwork — state 7 (127:3240).
+
+   SOURCE: design-reference/motion/figma-proto-recording-2026-09-15.mov, the authoritative
+   screen recording of the owner-driven Figma prototype. It supersedes the [APPROX] values
+   this file previously carried. Geometry below is MEASURED (frame 390 edge scan for the
+   cards, frame 432 circle fit for the rings, frames 390-485 for the dots and the rotation).
+
+   Still OWNER-SPECIFIED, not source-evidenced: the click-to-front swap. The operator never
+   clicks the stack in the recording (cursor parked on the cream to the right for the whole
+   171-frame hold) and the cards are pixel-static throughout, so the recording neither
+   confirms nor refutes it. Its transition duration/easing remain [APPROX] tokens.
+
+   The card rotations are DESIGN, not motion: they are part of the transform at every depth
+   and survive prefers-reduced-motion untouched. */
+
+.philosophy-stack {
+  /* Local tokens. The two dot fills have no counterpart in globals.css and this file may not
+     add one; they are declared once here rather than scattered as inline hex. MEASURED core
+     colours, averaged over 20 frames: inner ring dots #8B5957 (samples #885754..#8d5a55),
+     outer ring dots #6A808E (samples #687e8d..#6c818e). The H.264 decode reads 4-10 units
+     darker than the PNG exports, so treat these as approximate-but-measured. */
+  --philosophy-orbit-dot-inner: #8b5957;
+  --philosophy-orbit-dot-outer: #6a808e;
+  /* Ring stroke measured 2-12/255 below the cream ground => ~8% ink. */
+  --philosophy-orbit-stroke: color-mix(in srgb, var(--color-ink) 8%, transparent);
+  /* Rotation period. MEASURED: the artwork repeats exactly every 120 frames = 2000ms, but
+     eased-then-snapped — the fingerprint of a Figma "after delay + smart animate" loop
+     between two variants, i.e. a prototyping artefact. Observed angular rate brackets
+     66-131 deg/s, so the faithful production read is a continuous LINEAR rotation at about
+     90 deg/s = one revolution per 4s. This is the one deliberate departure from the literal
+     recording and it is flagged, not hidden. */
+  --philosophy-orbit-period: 4s;
+
+  position: relative;
+  display: block;
+  inline-size: 100%;
+  /* MEASURED at frame 390: two same-size cards, 457 x 635 CSS px, sharing a vertical centre
+     line, the back one offset +57px in x. Union box 514 x 635. */
+  aspect-ratio: 514 / 635;
+}
+
+/* SOURCE-ASSET CORRECTION (the stray white card):
+   philosophy-athlete.png is exported 842x1263 with a baked-in WHITE matte — 46px across the
+   top, 47px across the bottom, plus ~24px white corner arcs outside a rounded-rect mask. No
+   CSS rule painted it; the white is pixels in the asset. Nothing in the source frame has a
+   white border. Until the asset is re-exported without its matte (recorded as a request in
+   docs/figma-audit.md), the card box is declared at the MEASURED card ratio, 457 / 635, and
+   `object-fit: cover` centres the image so the matte falls outside the box; the matching
+   border-radius clips the four baked corner arcs. This is a measured correction of the
+   export's own padding, not a cosmetic re-crop of the photograph. */
+.philosophy-stack-card {
+  position: absolute;
+  z-index: calc(10 - var(--stack-depth));
+  inset-block-start: 0;
+  inset-inline-start: 0;
+  /* 457 / 514 of the union box. */
+  inline-size: 88.9%;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  aspect-ratio: 457 / 635;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  /* MEASURED corner radius ~15 CSS px on a 457 x 635 card. */
+  border-radius: 3.28% / 2.36%;
+  background: none;
+  cursor: pointer;
+  /* Depth slot, MEASURED at frame 390: depth 0 is axis-aligned (rotation 0.0deg — its left
+     edge holds x=416 device for every row y=560..1640 and its top edge is flat); depth 1 is
+     rotated +8.0deg CLOCKWISE (verified twice: top edge rises 94px over 670px of run, right
+     edge runs 144px over 1020px) at the SAME size and the SAME vertical centre, offset
+     +57px in x = 12.5% of the card width. Linear in --stack-depth so a third ordered entry
+     needs no rewrite. The previous -2.5deg front tilt and the 0.59 back-card scale were
+     [APPROX] and are both refuted by the recording. */
+  transform:
+    translateX(calc(var(--stack-depth) * 12.5%))
+    rotate(calc(var(--stack-depth) * 8deg));
+  transform-origin: center;
+  transition:
+    transform var(--duration-entry-long) var(--ease-out),
+    opacity var(--duration-panel) var(--ease-out);
+}
+
+/* Cards behind the front one sit back without disappearing: content is never gated on motion. */
+.philosophy-stack-card[aria-current="false"] { opacity: 0.92; }
+
+.philosophy-stack-card img {
+  display: block;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+/* Orbit rings + dots.
+   MEASURED: shared centre within 1px of the photo stack's own centre (ring centre x=301 CSS
+   px from the viewport content left edge vs the front card's centre at x=293.5). Outer
+   diameter 786 CSS px against the 514 px union box = 152.9%.
+
+   LAYERING IS OWNER-DIRECTED (2026-09-17, against node 244:1847), not measured. This file
+   previously painted the rings behind the cards and the dots in FRONT of them, on a reading
+   of the recording that every dot stayed legible over the photography. The owner says the
+   whole artwork always revolves BEHIND the image. So rings and dots share one layer below
+   the stack, and a dot crossing the cards is occluded and re-emerges on the far side. */
+.philosophy-orbit {
+  position: absolute;
+  /* Centre of the depth-0 card: 88.9% / 2 across, half the union height down. */
+  inset-block-start: 50%;
+  inset-inline-start: 44.45%;
+  inline-size: 152.9%;
+  block-size: auto;
+  translate: -50% -50%;
+  pointer-events: none;
+  overflow: visible;
+  /* Below every card: .philosophy-stack-card resolves to 10 (depth 0) and 9 (depth 1). */
+  z-index: 0;
+}
+
+.philosophy-orbit-ring {
+  stroke: var(--philosophy-orbit-stroke);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.philosophy-orbit-dot--inner { fill: var(--philosophy-orbit-dot-inner); }
+.philosophy-orbit-dot--outer { fill: var(--philosophy-orbit-dot-outer); }
+
+/* Transform only, no layout or paint properties. One group, so phase drift is impossible. */
+.philosophy-orbit-spin {
+  transform-origin: 393px 393px;
+  animation: philosophy-orbit-spin var(--philosophy-orbit-period) linear infinite;
+}
+
+@keyframes philosophy-orbit-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* The swap still happens — it just lands instantly. Resting rotation is in the transform
+     itself, so it is unaffected. */
+  .philosophy-stack-card { transition: none; }
+  /* The rotation carries no content, so it stops entirely and the artwork rests at 0deg. */
+  .philosophy-orbit-spin { animation: none; }
+}

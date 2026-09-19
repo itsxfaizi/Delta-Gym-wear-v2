@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-import { StatusSelect } from "@/components/admin/status-select";
 import {
   Dialog,
   DialogContent,
@@ -19,9 +18,10 @@ import {
   isConsequential,
   planBulkStatusChange,
   type BulkOrder,
+  type BulkPlan,
 } from "@/features/admin/bulk-actions";
 import { bulkChangeOrderStatus, type BulkOrderResult } from "@/features/admin/customer-actions";
-import { ORDER_STATUS_META, isCodStatus, type CodStatus } from "@/features/orders/status";
+import { ORDER_STATUS_META, type CodStatus } from "@/features/orders/status";
 
 /**
  * The plan is computed client-side only to show it; the server re-derives every
@@ -29,19 +29,21 @@ import { ORDER_STATUS_META, isCodStatus, type CodStatus } from "@/features/order
  */
 export function BulkActions({ selected, onApplied }: { selected: BulkOrder[]; onApplied: () => void }) {
   const router = useRouter();
-  const [target, setTarget] = useState("");
+  const [target, setTarget] = useState<CodStatus | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [results, setResults] = useState<BulkOrderResult[] | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  const targets = availableTargets(selected);
-  const plan = isCodStatus(target) ? planBulkStatusChange(selected, target) : null;
+  // With nothing ticked there is no legal move, so the bar still offers the
+  // three everyday ones as disabled buttons rather than collapsing to nothing.
+  const targets = selected.length === 0 ? (["confirmed", "packed", "cancelled"] as const) : availableTargets(selected);
+  const plan = target ? planBulkStatusChange(selected, target) : null;
 
-  function apply(next: CodStatus) {
+  function apply(next: BulkPlan) {
     startTransition(async () => {
       const result = await bulkChangeOrderStatus({
-        orderIds: plan?.eligible.map((order) => order.id) ?? [],
-        target: next,
+        orderIds: next.eligible.map((order) => order.id),
+        target: next.target,
       });
       setConfirming(false);
       setResults(result.results);
@@ -55,53 +57,44 @@ export function BulkActions({ selected, onApplied }: { selected: BulkOrder[]; on
     });
   }
 
-  return (
-    <section className="bulk-bar" aria-label="Bulk actions">
-      <p className="bulk-count" role="status">
-        {selected.length} selected on this page
-      </p>
+  function choose(next: CodStatus) {
+    setTarget(next);
+    setResults(null);
+    const nextPlan = planBulkStatusChange(selected, next);
+    // Nothing eligible: the plan below says which orders were skipped and why.
+    if (nextPlan.eligible.length === 0) return;
+    if (isConsequential(next)) setConfirming(true);
+    else apply(nextPlan);
+  }
 
-      {selected.length === 0 ? (
-        <p className="admin-hint">Tick an order to act on it. Selection covers this page only and clears when you filter or paginate.</p>
-      ) : targets.length === 0 ? (
-        <p className="admin-hint">Every selected order is in a final status, so there is no move to make.</p>
-      ) : (
-        <div className="admin-filters">
-          <div className="admin-field">
-            <label htmlFor="bulk-target">Move selected to</label>
-            <StatusSelect
-              id="bulk-target"
-              value={target}
-              options={targets.map((status) => ({ value: status, label: ORDER_STATUS_META[status].label }))}
-              disabled={isPending}
-              placeholder="Choose a status"
-              onValueChange={(value) => {
-                setTarget(value);
-                setConfirming(false);
-                setResults(null);
-              }}
-            />
-          </div>
-          <button
-            className="admin-button admin-button--primary"
-            type="button"
-            disabled={!plan || plan.eligible.length === 0 || isPending}
-            onClick={() => {
-              if (!plan) return;
-              if (isConsequential(plan.target)) setConfirming(true);
-              else apply(plan.target);
-            }}
-          >
-            {isPending ? "Working…" : "Review and apply"}
-          </button>
+  return (
+    <section aria-label="Bulk actions">
+      <div className="admin-bulkbar">
+        <p role="status">
+          {selected.length === 0
+            ? "Nothing selected — tick rows to act on them in bulk"
+            : `${selected.length} selected on this page`}
+        </p>
+        <div className="admin-actions">
+          {targets.map((status) => (
+            <button
+              key={status}
+              className={`admin-button${status === "cancelled" ? " admin-button--danger" : ""}`}
+              type="button"
+              disabled={selected.length === 0 || isPending}
+              onClick={() => choose(status)}
+            >
+              {status === "cancelled" ? "Cancel" : `Mark ${ORDER_STATUS_META[status].label.toLowerCase()}`}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {plan && selected.length > 0 ? (
-        <div className="bulk-plan">
+        <div className="orders-bulk-plan">
           <p>{plan.summary}</p>
           {plan.skipped.length > 0 ? (
-            <ul className="bulk-reasons">
+            <ul>
               {groupSkipReasons(plan.skipped).map((group) => (
                 <li key={group.reason}>
                   <strong>{group.orderNumbers.length} skipped</strong> — {group.reason} ({group.orderNumbers.join(", ")})
@@ -131,7 +124,7 @@ export function BulkActions({ selected, onApplied }: { selected: BulkOrder[]; on
             <button
               className="admin-button admin-button--danger"
               type="button"
-              onClick={() => plan && apply(plan.target)}
+              onClick={() => plan && apply(plan)}
               disabled={isPending}
             >
               {isPending ? "Working…" : "Yes, move them"}
@@ -141,7 +134,7 @@ export function BulkActions({ selected, onApplied }: { selected: BulkOrder[]; on
       </Dialog>
 
       {results ? (
-        <ul className="bulk-results">
+        <ul className="orders-bulk-results">
           {results.map((result) => (
             <li key={result.orderId} data-ok={result.ok}>
               <strong>{result.orderNumber}</strong> — {result.message}

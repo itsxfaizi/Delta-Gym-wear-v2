@@ -17,5 +17,13 @@ test-results/
 graphify-out/
 premium-audit.json
 premium-ui.json
-
 .vercel
+
+# macOS and local agent tooling
+.DS_Store
+.playwright-mcp/
+
+# Motion capture evidence: 70MB+ of raw video and extracted frames. Kept local;
+# the derived spec lives in docs/opening-motion-spec.md.
+design-reference/motion/*.mov
+design-reference/motion/frames/

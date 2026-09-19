@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 
 import { HomeView } from "@/components/storefront/home-view";
 
-export const dynamic = "force-dynamic";
-import { listPublishedProducts } from "@/features/catalog/queries";
-
 export const metadata: Metadata = {
   title: "Delta Gym Wear",
   description: "Explore the Delta Gym Wear catalog.",
@@ -15,6 +12,7 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function HomePage() {
-  return <HomeView products={await listPublishedProducts()} />;
+/** The landing route renders no catalog data, so it stays static: nothing blocks the hero. */
+export default function HomePage() {
+  return <HomeView />;
 }

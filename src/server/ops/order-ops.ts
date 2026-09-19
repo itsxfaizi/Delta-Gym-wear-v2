@@ -12,12 +12,12 @@ import {
 import { canTransition } from "@/features/orders/status";
 import { requireAdminPrincipal } from "@/server/admin/guard";
 import { requireTenantRole, type AuthenticatedPrincipal } from "@/server/authorization";
-import { memoryOrderOpsRepository } from "./store";
+import { databaseOrderOpsRepository } from "./store";
 import { InvalidOpsTransitionError, type OrderOps } from "./types";
 
 const OPS_WRITER_ROLES = ["owner", "publisher"] as const;
 
-const repository = memoryOrderOpsRepository;
+const repository = databaseOrderOpsRepository;
 
 /**
  * Every mutation re-authorizes server-side. A caller may pass a principal it

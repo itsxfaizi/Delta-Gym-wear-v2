@@ -368,7 +368,61 @@ export const orderItems = pgTable(
   ],
 );
 
+/** Timestamps are ISO strings in JSONB; the repository revives them as Dates. */
+export type StoredCallAttempt = {
+  id: string;
+  outcome: string;
+  notedAt: string;
+  note?: string;
+};
+
+export type StoredInternalNote = {
+  id: string;
+  body: string;
+  authorUserId: string;
+  notedAt: string;
+};
+
+/**
+ * Cash-on-delivery working state: call attempts, courier/tracking, internal
+ * notes and the COD overlay status. These have no home on `orders` because the
+ * order_status enum is the customer-facing lifecycle, while a COD order also
+ * moves through states the buyer never sees (awaiting confirmation, refused,
+ * returned to sender).
+ *
+ * Call attempts and notes are JSONB rather than child tables: they are only
+ * ever read and written whole, with one row per order, and nothing queries
+ * across them.
+ */
+export const orderOps = pgTable(
+  "order_ops",
+  {
+    orderId: uuid("order_id").primaryKey(),
+    tenantId: uuid("tenant_id").notNull(),
+    callAttempts: jsonb("call_attempts").$type<StoredCallAttempt[]>().notNull().default([]),
+    lastAttemptAt: timestamp("last_attempt_at", { withTimezone: true }),
+    nextFollowUpAt: timestamp("next_follow_up_at", { withTimezone: true }),
+    internalNotes: jsonb("internal_notes").$type<StoredInternalNote[]>().notNull().default([]),
+    courier: text("courier"),
+    trackingNumber: text("tracking_number"),
+    trackingUrl: text("tracking_url"),
+    dispatchedAt: timestamp("dispatched_at", { withTimezone: true }),
+    opsStatus: text("ops_status"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("order_ops_tenant_id_idx").on(table.tenantId),
+    foreignKey({
+      name: "order_ops_tenant_order_fk",
+      columns: [table.tenantId, table.orderId],
+      foreignColumns: [orders.tenantId, orders.id],
+    }).onDelete("cascade"),
+  ],
+);
+
 export type Tenant = typeof tenants.$inferSelect;
+export type OrderOpsRow = typeof orderOps.$inferSelect;
 export type Membership = typeof memberships.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type ProductVariant = typeof productVariants.$inferSelect;

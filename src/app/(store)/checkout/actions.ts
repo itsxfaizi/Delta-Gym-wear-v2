@@ -3,8 +3,9 @@
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 
-import { getCustomerByAuthUserId } from "@/features/account/queries";
 import { OutOfStockError } from "@/features/orders/inventory";
+import { checkoutInputSchema } from "@/features/orders/schemas";
+import { ensureCustomerId } from "@/server/account/customers";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import { UnknownVariantError, placeCodOrder } from "@/server/orders/mutations";
 import { OrdersDatabaseUnavailableError } from "@/server/orders/queries";
@@ -12,15 +13,28 @@ import { rememberPlacedOrder } from "@/server/orders/receipt-access";
 
 export type CheckoutActionResult = { ok: false; message: string };
 
-/** Attaches the order to the signed-in customer; a guest checkout stays anonymous. */
-async function resolveCustomerId(): Promise<string | null> {
+/**
+ * Attaches the order to the signed-in customer; a guest checkout stays
+ * anonymous. The customer record is created here if it does not exist yet —
+ * this checkout is the first moment the shopper has one.
+ */
+async function resolveCustomerId(rawInput: unknown): Promise<string | null> {
   try {
     const user = await getAuthenticatedUser();
     if (!user) return null;
-    const customer = await getCustomerByAuthUserId(user.id);
-    return customer?.id ?? null;
-  } catch {
-    // Supabase is not configured in this environment: continue as a guest.
+
+    const input = checkoutInputSchema.safeParse(rawInput);
+    if (!input.success) return null;
+
+    return await ensureCustomerId(user.id, {
+      email: input.data.contactEmail || user.email || "",
+      fullName: input.data.shippingAddress.fullName,
+      phone: input.data.contactPhone,
+    });
+  } catch (error) {
+    // Supabase or the database is unavailable here: the order still goes
+    // through as a guest checkout rather than failing over a history link.
+    console.error("checkout: could not resolve the customer record", error);
     return null;
   }
 }
@@ -53,7 +67,7 @@ export async function placeOrderAction(rawInput: unknown): Promise<CheckoutActio
   let orderNumber: string;
 
   try {
-    const order = await placeCodOrder(rawInput, { customerId: await resolveCustomerId() });
+    const order = await placeCodOrder(rawInput, { customerId: await resolveCustomerId(rawInput) });
     orderNumber = order.orderNumber;
     await rememberPlacedOrder(orderNumber);
   } catch (error) {

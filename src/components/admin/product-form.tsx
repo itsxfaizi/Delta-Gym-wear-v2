@@ -9,6 +9,7 @@ import { saveProduct } from "@/features/admin/actions";
 import {
   EMPTY_PRODUCT,
   EMPTY_VARIANT,
+  CREATABLE_STATUSES,
   PRODUCT_STATUSES,
   productFormSchema,
   slugify,
@@ -92,7 +93,9 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
                 <StatusSelect
                   id="product-status"
                   value={field.value}
-                  options={PRODUCT_STATUSES}
+                  // A product is born in draft and can only go straight to
+                  // published; the rest of the lifecycle opens up once it exists.
+                  options={product?.id ? PRODUCT_STATUSES : CREATABLE_STATUSES}
                   onValueChange={field.onChange}
                 />
               )}

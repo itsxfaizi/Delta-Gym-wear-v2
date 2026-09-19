@@ -20,10 +20,17 @@ export const setStatusSchema = z.object({
   status: z.enum(MEMBERSHIP_STATUSES),
 });
 
-export type MemberRow = {
+/** What the owner guard needs: a membership's identity, role and standing. */
+export type Membership = {
   authUserId: string;
   role: (typeof ADMIN_ROLES)[number];
   status: string;
+};
+
+/** A membership as the team screen shows it, with the account's email resolved. */
+export type MemberRow = Membership & {
+  /** From auth.users; null if the account was deleted out from under the membership. */
+  email: string | null;
 };
 
 export class LastOwnerError extends Error {
@@ -40,7 +47,7 @@ export class LastOwnerError extends Error {
  * active owners can never regain admin access, so this is the one membership
  * change the console refuses no matter who asks.
  */
-export function isLastActiveOwner(members: readonly MemberRow[], authUserId: string): boolean {
+export function isLastActiveOwner(members: readonly Membership[], authUserId: string): boolean {
   const activeOwners = members.filter((member) => member.role === "owner" && member.status === "active");
   return activeOwners.length === 1 && activeOwners[0].authUserId === authUserId;
 }

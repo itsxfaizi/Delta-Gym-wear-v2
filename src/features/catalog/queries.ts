@@ -2,9 +2,11 @@ import "server-only";
 
 import { and, eq } from "drizzle-orm";
 
+import { fuzzyMatches } from "@/features/catalog/fuzzy";
+
 import { isVariantPurchasable } from "./stock";
 import { DEVELOPMENT_SEED_PRODUCTS, validateDevelopmentSeedAssets } from "./seed";
-import type { CatalogCollection, CatalogFilters, CatalogProduct } from "./types";
+import type { CatalogCollection, CatalogFacets, CatalogFilters, CatalogProduct } from "./types";
 import { createDatabase } from "@/server/db";
 import { getCatalogTenantId } from "@/server/env";
 import { mediaReferences, productVariants, products } from "@/server/db/schema";
@@ -19,6 +21,31 @@ function seedOrThrow(): readonly CatalogProduct[] {
     throw new Error("Development catalog seed content is disabled in the production runtime.");
   }
   return DEVELOPMENT_SEED_PRODUCTS;
+}
+
+/**
+ * Single entry point for every public catalog read. Without `DATABASE_URL`, when
+ * the catalog database is unreachable during a production build (private host, no
+ * network in CI), and when it is unreachable in local development, reads fall back
+ * to the development seed instead of failing. `seedOrThrow` still refuses to serve
+ * seed content in the production runtime, so a real outage there stays loud.
+ */
+async function readCatalog<T>(read: () => Promise<T>, fromSeed: () => T): Promise<T> {
+  if (!process.env.DATABASE_URL) return fromSeed();
+  try {
+    return await read();
+  } catch (error) {
+    const isBuild = process.env.NEXT_PHASE === "phase-production-build";
+    // Dev falls back so an unreachable database (e.g. an IPv6-only Supabase direct
+    // host on an IPv4-only network) does not make every storefront route a 500.
+    // The seed is labelled `source: "development-seed"` wherever it is rendered.
+    if (!isBuild && process.env.NODE_ENV !== "development") throw error;
+    console.warn(
+      `Catalog database unreachable ${isBuild ? "during build" : "in development"}; serving development seed content.`,
+      error,
+    );
+    return fromSeed();
+  }
 }
 
 const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
@@ -53,11 +80,14 @@ function matchesSelectedVariant(product: CatalogProduct, filters: CatalogFilters
   });
 }
 
+function matchesCatalogPrice(product: CatalogProduct, maxPrice: number | null | undefined): boolean {
+  return maxPrice === null || maxPrice === undefined || product.priceAmount <= maxPrice;
+}
+
 function matchesCatalogQuery(product: CatalogProduct, q: string): boolean {
   if (!q) return true;
-  return product.title.toLowerCase().includes(q)
-    || product.handle.toLowerCase().includes(q)
-    || product.description?.toLowerCase().includes(q) === true;
+  // The handle is hyphenated, so it only reads as words once normalized.
+  return fuzzyMatches(q, `${product.title} ${product.handle} ${product.description ?? ""}`);
 }
 
 function compareCatalogProducts(left: CatalogProduct, right: CatalogProduct, sort: CatalogFilters["sort"]): number {
@@ -77,19 +107,62 @@ export function filterPublishedProducts(
   return products
     .filter((product) => matchesCatalogQuery(product, filters.q)
       && matchesSelectedVariant(product, filters)
+      && matchesCatalogPrice(product, filters.maxPrice)
       && (!filters.inStockOnly || product.variants.some(isVariantPurchasable)))
     .toSorted((left, right) => compareCatalogProducts(left, right, filters.sort));
 }
 
-export async function listPublishedProducts(): Promise<readonly CatalogProduct[]> {
-  if (!process.env.DATABASE_URL) return seedOrThrow();
+/**
+ * Sizes are ordered by the conventional garment scale where the catalog uses it,
+ * and alphabetically otherwise. No size taxonomy is authored in the design source.
+ */
+const GARMENT_SIZE_ORDER = ["xxs", "xs", "s", "m", "l", "xl", "xxl", "xxxl"] as const;
 
-  const db = createDatabase();
-  const tenantId = getCatalogTenantId();
-  const rows = await db.select().from(products).where(and(eq(products.tenantId, tenantId), eq(products.status, "published")));
-  return Promise.all(rows.map((product) => getPublishedProduct(product.handle, db, tenantId))).then((items) =>
-    items.filter((item): item is CatalogProduct => item !== null),
-  );
+function compareCatalogSizes(left: string, right: string): number {
+  const leftRank = GARMENT_SIZE_ORDER.indexOf(left.toLowerCase() as (typeof GARMENT_SIZE_ORDER)[number]);
+  const rightRank = GARMENT_SIZE_ORDER.indexOf(right.toLowerCase() as (typeof GARMENT_SIZE_ORDER)[number]);
+  if (leftRank !== -1 && rightRank !== -1) return leftRank - rightRank;
+  if (leftRank !== -1) return -1;
+  if (rightRank !== -1) return 1;
+  return catalogTextCollator.compare(left, right);
+}
+
+/**
+ * Derives the filter rail's options from the published catalog rather than a
+ * hardcoded list, so the rail can never offer a value nothing is tagged with.
+ */
+export function catalogFacets(products: readonly CatalogProduct[]): CatalogFacets {
+  const sizes = new Map<string, string>();
+  const colors = new Map<string, string>();
+  const prices: number[] = [];
+
+  for (const product of products) {
+    if (Number.isFinite(product.priceAmount) && product.priceAmount > 0) prices.push(product.priceAmount);
+    for (const variant of product.variants) {
+      const size = variant.size?.trim();
+      const color = variant.color?.trim();
+      if (size) sizes.set(size.toLowerCase(), size);
+      if (color) colors.set(color.toLowerCase(), color);
+    }
+  }
+
+  const min = prices.length ? Math.min(...prices) : 0;
+  const max = prices.length ? Math.max(...prices) : 0;
+  return {
+    sizes: [...sizes.values()].toSorted(compareCatalogSizes),
+    colors: [...colors.values()].toSorted((left, right) => catalogTextCollator.compare(left, right)),
+    priceBounds: min < max ? { min, max } : null,
+  };
+}
+
+export async function listPublishedProducts(): Promise<readonly CatalogProduct[]> {
+  return readCatalog(async () => {
+    const db = createDatabase();
+    const tenantId = getCatalogTenantId();
+    const rows = await db.select().from(products).where(and(eq(products.tenantId, tenantId), eq(products.status, "published")));
+    const items = await Promise.all(rows.map((product) => readPublishedProduct(product.handle, db, tenantId)));
+    return items.filter((item): item is CatalogProduct => item !== null);
+  }, seedOrThrow);
 }
 
 /** Reads the public catalog with normalized URL filters applied to published products only. */
@@ -109,10 +182,12 @@ export async function getPublishedCollection(
 ): Promise<CatalogCollection | null> {
   if (handle.trim().toLowerCase() !== "all") return null;
 
+  const published = await listPublishedProducts();
   return {
     handle: "all",
     title: "All Products",
-    products: await queryPublishedProducts(filters),
+    products: filterPublishedProducts(published, filters),
+    facets: catalogFacets(published),
   };
 }
 
@@ -124,10 +199,18 @@ export async function getPublishedProduct(
   const normalizedHandle = handle.trim().toLowerCase();
   if (!normalizedHandle || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalizedHandle)) return null;
 
-  if (!process.env.DATABASE_URL) {
-    return seedOrThrow().find((product) => product.handle === normalizedHandle) ?? null;
-  }
+  return readCatalog(
+    () => readPublishedProduct(normalizedHandle, database, scopedTenantId),
+    () => seedOrThrow().find((product) => product.handle === normalizedHandle) ?? null,
+  );
+}
 
+/** Raw database read for one published product; callers go through `readCatalog`. */
+async function readPublishedProduct(
+  normalizedHandle: string,
+  database?: ReturnType<typeof createDatabase>,
+  scopedTenantId?: string,
+): Promise<CatalogProduct | null> {
   const db = database ?? createDatabase();
   const tenantId = scopedTenantId ?? getCatalogTenantId();
   const [product] = await db

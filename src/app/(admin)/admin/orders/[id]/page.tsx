@@ -13,6 +13,13 @@ import { OrdersDatabaseUnavailableError, getOrderById } from "@/server/orders/qu
 
 import "../../../../../styles/admin-ops.css";
 
+/** Same cash-on-delivery wording the list uses for its Payment column. */
+const PAYMENT_LABELS: Record<string, string> = {
+  unpaid: "Pending on delivery",
+  paid: "Collected",
+  refunded: "Refunded",
+};
+
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,7 +40,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
     return (
       <>
         <div className="admin-header">
-          <h1>Order {id}</h1>
+          <div>
+            <h1>Order</h1>
+            <p className="admin-hint admin-mono">{id}</p>
+          </div>
         </div>
         <section className="admin-panel">
           <h2>Order unavailable</h2>
@@ -54,8 +64,16 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
   return (
     <>
       <div className="admin-header">
-        <h1>{order.orderNumber}</h1>
-        <StatusBadge status={status} />
+        <div>
+          <h1>{order.orderNumber}</h1>
+          <p className="admin-hint">
+            Placed <time dateTime={order.placedAt.toISOString()}>{formatLongDateTime(order.placedAt)}</time>{" "}
+            · {money(order.totalAmount)}
+          </p>
+        </div>
+        <div className="admin-actions">
+          <StatusBadge status={status} />
+        </div>
       </div>
 
       <section className="admin-panel">
@@ -119,8 +137,7 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             {address.postalCode ? ` ${address.postalCode}` : ""}
             <br />
             {address.country}
-            <br />
-            {address.phone}
+            <span className="admin-meta">{address.phone}</span>
           </address>
         </section>
 
@@ -133,11 +150,12 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
             </dd>
             <dt>Contact</dt>
             <dd>
-              {order.contactEmail} · {order.contactPhone}
+              {order.contactEmail}
+              <span className="admin-meta">{order.contactPhone}</span>
             </dd>
             <dt>Payment</dt>
             <dd>
-              {order.paymentMethod} · {order.paymentStatus}
+              {order.paymentMethod.toUpperCase()} · {PAYMENT_LABELS[order.paymentStatus] ?? order.paymentStatus}
             </dd>
             {order.notes ? (
               <>
@@ -151,27 +169,41 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
 
       <section className="admin-panel admin-table-scroll">
         <h2>Items</h2>
-        <table className="admin-table">
+        <table className="admin-table admin-data-table">
           <thead>
             <tr>
               <th scope="col">Product</th>
               <th scope="col">SKU</th>
-              <th scope="col">Unit</th>
-              <th scope="col">Qty</th>
-              <th scope="col">Line total</th>
+              <th scope="col" className="admin-num">
+                Unit
+              </th>
+              <th scope="col" className="admin-num">
+                Qty
+              </th>
+              <th scope="col" className="admin-num">
+                Line total
+              </th>
             </tr>
           </thead>
           <tbody>
             {order.items.map((item) => (
               <tr key={item.id}>
-                <td className="admin-cell-wrap">
+                <td className="admin-cell-wrap" data-label="Product">
                   {item.productTitle}
-                  {item.variantLabel ? ` — ${item.variantLabel}` : ""}
+                  {item.variantLabel ? <span className="admin-meta">{item.variantLabel}</span> : null}
                 </td>
-                <td>{item.sku}</td>
-                <td>{money(item.unitPriceAmount)}</td>
-                <td>{item.quantity}</td>
-                <td>{money(item.lineTotalAmount)}</td>
+                <td className="admin-mono" data-label="SKU">
+                  {item.sku}
+                </td>
+                <td className="admin-num" data-label="Unit">
+                  {money(item.unitPriceAmount)}
+                </td>
+                <td className="admin-num" data-label="Qty">
+                  {item.quantity}
+                </td>
+                <td className="admin-num" data-label="Line total">
+                  {money(item.lineTotalAmount)}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -180,19 +212,25 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
               <th colSpan={4} scope="row">
                 Subtotal
               </th>
-              <td>{money(order.subtotalAmount)}</td>
+              <td className="admin-num" data-label="Subtotal">
+                {money(order.subtotalAmount)}
+              </td>
             </tr>
             <tr>
               <th colSpan={4} scope="row">
                 Shipping
               </th>
-              <td>{money(order.shippingAmount)}</td>
+              <td className="admin-num" data-label="Shipping">
+                {money(order.shippingAmount)}
+              </td>
             </tr>
             <tr>
               <th colSpan={4} scope="row">
                 Total
               </th>
-              <td>{money(order.totalAmount)}</td>
+              <td className="admin-num" data-label="Total">
+                {money(order.totalAmount)}
+              </td>
             </tr>
           </tfoot>
         </table>

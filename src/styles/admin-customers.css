@@ -1,133 +1,320 @@
-/* Customers list/detail and the order-list bulk bar. Square corners, editorial type. */
+/* Customers list/detail and the team screen.
+   Square corners, editorial type; tokens come from admin.css. */
+
+[data-route-surface="admin"] {
+  /* Amber has no shared token: it exists only for the "watch" COD signal,
+     which sits between the teal in-flight tone and the red danger tone. */
+  --customer-watch: #8a5f00;
+}
+
+/* The customers KPI strip is four separate cards with a coloured left edge,
+   not the dashboard's joined hairline strip. */
+.customer-kpis {
+  gap: 1.25rem;
+  border: 0;
+  background: none;
+}
+
+.customer-kpis .kpi-card {
+  align-content: start;
+  gap: var(--space-2);
+  min-block-size: auto;
+  padding: 1.125rem;
+  border: 1px solid var(--admin-rule);
+}
+
+/* These four cards carry no period-over-period trend: drop the placeholder
+   dash and the empty spark strip, and let the hint read as prose. */
+.customer-kpis .kpi-trend > [aria-hidden] {
+  display: none;
+}
+
+.customer-kpis .kpi-spark:empty {
+  display: none;
+}
+
+.customer-kpis .kpi-hint,
+.customer-kpis .kpi-trend-caption {
+  color: var(--admin-ink-faint);
+  font-family: var(--admin-font-ui);
+  font-size: 0.75rem;
+}
+
+.customer-kpis .kpi-value {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+
+.customer-kpis .kpi-card:nth-child(2) {
+  box-shadow: inset 3px 0 0 var(--admin-accent);
+}
+
+.customer-kpis .kpi-card:nth-child(3) {
+  box-shadow: inset 3px 0 0 var(--customer-watch);
+}
+
+.customer-kpis .kpi-card:nth-child(4) {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+/* Counts sit right-aligned in their columns; the shared `.admin-table td`
+   start-alignment would otherwise win on specificity. */
+.customer-table th.admin-num,
+.customer-table td.admin-num {
+  text-align: end;
+}
+
+.customer-table td {
+  padding-block: 0.75rem;
+}
+
+.customer-table--list th:first-child {
+  padding-inline-start: var(--space-3);
+}
+
+.customer-table--list td:first-child {
+  min-inline-size: 13rem;
+}
+
+/* The name reads as text, not as a coloured link, until it is hovered. */
+.customer-table td a {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.customer-table td a:hover,
+.customer-table td a:focus-visible {
+  text-decoration: underline;
+}
+
+/* The quiet aside explaining how the COD signal is inferred. */
+.customer-rule {
+  max-width: 88ch;
+  padding-inline-start: var(--space-3);
+  border-inline-start: 3px solid var(--admin-rule);
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
 
 .customer-tag {
-  margin-left: var(--space-2);
+  margin-inline-start: var(--space-2);
   padding: 0.1rem var(--space-2);
-  border: 1px solid var(--color-border);
-  font-size: 0.625rem;
-  letter-spacing: 0.08em;
+  border: 1px solid var(--admin-rule);
+  color: var(--color-ink-soft);
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.customer-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
 }
 
 .customer-risk {
   display: inline-block;
-  padding: 0.15rem var(--space-2);
-  border: 1px solid var(--color-border);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  padding: 0.125rem var(--space-2);
+  border: 1px solid var(--admin-rule);
+  color: var(--color-ink-soft);
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 
+.customer-risk[data-level="ok"] {
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
+}
+
 .customer-risk[data-level="watch"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
+  border-color: var(--customer-watch);
+  color: var(--customer-watch);
 }
 
 .customer-risk[data-level="high"] {
   border-color: var(--color-danger);
-  color: var(--color-danger);
+  background: var(--color-danger);
+  color: var(--color-inverse);
+}
+
+.customer-risk-ratio {
+  color: var(--admin-ink-faint);
+  font-family: var(--admin-font-mono);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .customer-risk-reason {
   display: block;
-  margin-top: var(--space-1);
+  margin-block-start: var(--space-2);
   color: var(--color-ink-soft);
   font-size: 0.75rem;
 }
 
-.customer-rule {
-  max-width: 70ch;
+/* A failed-delivery count only earns the danger colour when there is one. */
+.admin-table td[data-failed="true"] {
+  color: var(--color-danger);
+}
+
+.customer-last {
   color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.customer-value {
+  font-family: var(--admin-font-mono);
+  font-variant-numeric: tabular-nums;
 }
 
 .customer-summary {
-  display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
-  margin-bottom: var(--space-4);
-}
-
-.customer-card {
-  padding: var(--space-4);
-}
-
-.customer-card h2 {
-  margin: 0 0 var(--space-3);
-  font-size: 0.75rem;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  margin-block-end: var(--space-4);
 }
 
 .customer-addresses {
   margin: 0;
-  padding-left: var(--space-4);
-}
-
-.customer-history-heading {
-  margin: var(--space-5) 0 var(--space-3);
-  font-size: 1rem;
-}
-
-.bulk-bar {
-  display: grid;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-}
-
-.bulk-count {
-  margin: 0;
-  font-weight: 700;
-}
-
-.bulk-plan p,
-.bulk-reasons,
-.bulk-results {
-  margin: 0 0 var(--space-2);
-}
-
-.bulk-reasons,
-.bulk-results {
-  padding-left: var(--space-4);
+  padding-inline-start: var(--space-4);
   font-size: 0.875rem;
 }
 
-.bulk-results li[data-ok="false"] {
+/* Team — mockup's team view. Values read off the mockup's inline styles. */
+
+.team-top {
+  /* The mockup's row sets no align-items, so the pair stretches to one height.
+     .admin-columns start-aligns by default, which left the panels ragged. */
+  align-items: stretch;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+}
+
+/* Panels in this screen lay themselves out with their own grid gap, so the
+   shared heading margin would double the space under the title. */
+.team-add h2,
+.team-top .admin-panel h2,
+.team-members h2 {
+  margin-block-end: 0;
+}
+
+.team-top .admin-panel,
+.team-add {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+}
+
+.team-members {
+  display: grid;
+  gap: var(--space-4);
+  padding: 1.25rem;
+}
+
+.team-submit {
+  min-block-size: 44px;
+  padding-inline: 1.25rem;
+}
+
+.team-id-input {
+  font-family: var(--admin-font-mono);
+  font-size: 0.8125rem;
+}
+
+/* The mockup's member cell is IBM Plex Mono 0.75rem at normal weight. We show
+   the account's email in that slot rather than the raw uuid, but the type
+   treatment is the mockup's. */
+.team-id {
+  font-family: var(--admin-font-mono);
+  font-size: 0.75rem;
+}
+
+.team-email {
+  font-weight: 400;
+}
+
+.team-self {
+  color: var(--admin-accent);
+}
+
+.team-roles {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.team-roles > div {
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+  border-block-end: 1px solid var(--admin-rule-soft);
+}
+
+.team-roles dt {
+  font-family: var(--admin-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.team-roles dd {
+  margin: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+/* Members table */
+
+.team-table td {
+  padding-block: 0.75rem;
+  vertical-align: middle;
+}
+
+.team-table th:last-child,
+.admin-table td.team-actions {
+  text-align: end;
+}
+
+/* The role control is a compact inline select, not a full-width form field. */
+.team-role-cell .admin-select-trigger {
+  min-block-size: 36px;
+  inline-size: auto;
+  padding-inline: 0.5rem;
+  font-family: var(--admin-font-mono);
+  font-size: 0.75rem;
+  text-transform: none;
+}
+
+/* Active reads as an outline, not a filled chip: only the mockup's revoked
+   tone is coloured, and neither is filled. */
+.team-status[data-state="active"] {
+  border-color: var(--color-ink);
+  background: transparent;
+  color: var(--color-ink);
+}
+
+.team-status[data-state="suspended"] {
+  border-color: var(--color-danger);
+  background: transparent;
   color: var(--color-danger);
 }
 
-.bulk-confirm {
-  padding: var(--space-4);
-  border: 2px solid var(--color-ink);
-  background: var(--color-canvas);
+.team-button {
+  min-block-size: 32px;
+  padding-inline: 0.625rem;
+  font-size: var(--admin-label-size);
+  letter-spacing: 0.1em;
 }
 
-.bulk-confirm h3 {
-  margin: 0 0 var(--space-2);
-  font-size: 1rem;
+.team-actions .admin-hint {
+  margin-block: var(--space-1) 0;
+  font-size: 0.6875rem;
 }
 
-.order-select-cell {
-  width: 1%;
-  white-space: nowrap;
-}
-
-/* The per-row checkbox is labelled for screen readers without repeating the order
-   number visually beside it. */
-.order-select-label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
-}
-
-.admin-table tr[data-selected="true"] {
-  background: var(--color-surface-strong);
+/* Role keys are shown verbatim; the shared trigger's capitalize would render
+   "Catalog_editor". */
+.team-add .admin-select-trigger {
+  text-transform: none;
 }

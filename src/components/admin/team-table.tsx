@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { UserPlus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -23,14 +22,16 @@ import {
 
 type AddMemberInput = import("zod").infer<typeof AddMemberSchema>;
 
-const ROLE_LABELS: Record<(typeof ADMIN_ROLES)[number], string> = {
-  owner: "Owner",
-  catalog_editor: "Catalog editor",
-  publisher: "Publisher",
-  auditor: "Auditor",
+/** Wording tracks what the guards actually enforce, not the design mockup. */
+const ROLE_NOTES: Record<(typeof ADMIN_ROLES)[number], string> = {
+  owner: "Everything, including team membership and role changes.",
+  catalog_editor: "Create and edit products, variants and stock. Cannot publish or move orders.",
+  publisher: "Publish and archive products, and move orders through the cash-on-delivery flow.",
+  auditor: "Read-only: can open every admin screen but change nothing.",
 };
 
-const ROLE_OPTIONS = ADMIN_ROLES.map((role) => ({ value: role, label: ROLE_LABELS[role] }));
+/* The mockup shows the raw role key everywhere, matching the reference panel. */
+const ROLE_OPTIONS = ADMIN_ROLES.map((role) => ({ value: role, label: role }));
 
 export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; selfId: string }) {
   const router = useRouter();
@@ -74,63 +75,74 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
   }
 
   return (
-    <div className="admin-stack">
-      <form className="admin-card team-add" onSubmit={handleSubmit(onAdd)} noValidate>
-        <h2>Add a member</h2>
-        <p className="admin-hint">
-          They must already have signed in once, so an auth user id exists. Find it in Supabase under
-          Authentication → Users.
-        </p>
-        <div className="admin-field">
-          <label htmlFor="member-auth-id">Supabase auth user id</label>
-          <input
-            id="member-auth-id"
-            autoComplete="off"
-            placeholder="00000000-0000-0000-0000-000000000000"
-            aria-invalid={errors.authUserId ? "true" : "false"}
-            aria-describedby={errors.authUserId ? "member-auth-id-error" : undefined}
-            {...register("authUserId")}
-          />
-          {errors.authUserId ? (
-            <span className="admin-field-error" id="member-auth-id-error" role="alert">
-              {errors.authUserId.message}
-            </span>
-          ) : null}
-        </div>
-        <div className="admin-field">
-          <label htmlFor="member-role">Role</label>
-          <Controller
-            control={control}
-            name="role"
-            render={({ field }) => (
-              <StatusSelect
-                id="member-role"
-                value={field.value}
-                options={ROLE_OPTIONS}
-                disabled={isSubmitting}
-                onValueChange={field.onChange}
-              />
-            )}
-          />
-        </div>
-        <div className="admin-actions">
-          <button className="admin-button admin-button--primary" type="submit" disabled={isSubmitting}>
-            <UserPlus aria-hidden="true" /> {isSubmitting ? "Adding…" : "Add member"}
-          </button>
-        </div>
-      </form>
+    <>
+      <div className="admin-columns team-top">
+        <form className="admin-panel team-add" onSubmit={handleSubmit(onAdd)} noValidate>
+          <h2>Add a member</h2>
+          <div className="admin-field">
+            <label htmlFor="member-auth-id">Auth user id</label>
+            <input
+              id="member-auth-id"
+              className="team-id-input"
+              autoComplete="off"
+              placeholder="00000000-0000-0000-0000-000000000000"
+              aria-invalid={errors.authUserId ? "true" : "false"}
+              aria-describedby={errors.authUserId ? "member-auth-id-error" : undefined}
+              {...register("authUserId")}
+            />
+            {errors.authUserId ? (
+              <span className="admin-error" id="member-auth-id-error" role="alert">
+                {errors.authUserId.message}
+              </span>
+            ) : null}
+          </div>
+          <div className="admin-field">
+            <label htmlFor="member-role">Role</label>
+            <Controller
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <StatusSelect
+                  id="member-role"
+                  value={field.value}
+                  options={ROLE_OPTIONS}
+                  disabled={isSubmitting}
+                  onValueChange={field.onChange}
+                />
+              )}
+            />
+          </div>
+          <div className="admin-actions">
+            <button className="admin-button admin-button--primary team-submit" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Adding…" : "Add member"}
+            </button>
+          </div>
+        </form>
 
-      <div className="admin-card">
-        <h2>Members</h2>
+        <section className="admin-panel" aria-labelledby="team-roles">
+          <h2 id="team-roles">What each role can do</h2>
+          <dl className="team-roles">
+            {ADMIN_ROLES.map((role) => (
+              <div key={role}>
+                <dt>{role}</dt>
+                <dd>{ROLE_NOTES[role]}</dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      </div>
+
+      <section className="admin-panel team-members" aria-labelledby="team-members">
+        <h2 id="team-members">Members</h2>
         {members.length === 0 ? (
           <p className="admin-empty">No members yet.</p>
         ) : (
           <div className="admin-table-scroll">
-            <table className="admin-table">
+            <table className="admin-table admin-data-table team-table">
               <caption className="sr-only">Team members and their roles</caption>
               <thead>
                 <tr>
-                  <th scope="col">Auth user id</th>
+                  <th scope="col">Member</th>
                   <th scope="col">Role</th>
                   <th scope="col">Status</th>
                   <th scope="col">Actions</th>
@@ -143,13 +155,16 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
 
                   return (
                     <tr key={member.authUserId}>
-                      <td>
-                        <code className="team-id">{member.authUserId}</code>
-                        {member.authUserId === selfId ? <span className="admin-hint"> (you)</span> : null}
+                      <td className="team-id" data-label="Member">
+                        {/* The auth user id identifies the row to the server, but an
+                            owner reads the account by its email. */}
+                        <span className="team-email">{member.email ?? "Account deleted"}</span>
+                        {member.authUserId === selfId ? <span className="team-self">&nbsp; · you</span> : null}
                       </td>
-                      <td>
+                      <td className="team-role-cell" data-label="Role">
                         <StatusSelect
                           id={`role-${member.authUserId}`}
+                          label={`Role for ${member.email ?? member.authUserId}`}
                           value={member.role}
                           options={ROLE_OPTIONS}
                           disabled={busy || lastOwner}
@@ -158,19 +173,19 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                           }
                         />
                       </td>
-                      <td>
-                        <span className="ops-badge" data-tone={member.status === "active" ? "success" : "warn"}>
-                          {member.status === "active" ? "Active" : "Suspended"}
+                      <td data-label="Status">
+                        <span className="admin-status team-status" data-state={member.status}>
+                          {member.status === "active" ? "Active" : "Revoked"}
                         </span>
                       </td>
-                      <td>
+                      <td className="team-actions" data-label="Actions">
                         <button
-                          className="admin-button"
+                          className={`admin-button team-button${member.status === "active" ? " admin-button--danger" : ""}`}
                           type="button"
                           disabled={busy || lastOwner}
                           onClick={() =>
                             run(
-                              member.status === "active" ? "Member suspended." : "Member reactivated.",
+                              member.status === "active" ? "Access revoked." : "Access restored.",
                               () =>
                                 setMemberStatusAction({
                                   authUserId: member.authUserId,
@@ -180,7 +195,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                             )
                           }
                         >
-                          {busy ? "Working…" : member.status === "active" ? "Suspend" : "Reactivate"}
+                          {busy ? "Working…" : member.status === "active" ? "Revoke" : "Restore"}
                         </button>
                         {lastOwner ? (
                           <p className="admin-hint">The last active owner cannot be changed.</p>
@@ -193,7 +208,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
             </table>
           </div>
         )}
-      </div>
-    </div>
+      </section>
+    </>
   );
 }

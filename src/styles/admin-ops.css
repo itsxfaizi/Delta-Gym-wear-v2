@@ -1,40 +1,4 @@
-/* COD operations screen. Square, editorial, tokens from globals.css. */
-
-.ops-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0.25rem var(--space-3);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  color: var(--color-ink);
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.ops-badge[data-tone="info"] {
-  border-color: var(--color-ink);
-}
-
-.ops-badge[data-tone="warn"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-}
-
-.ops-badge[data-tone="success"] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-inverse);
-}
-
-.ops-badge[data-tone="danger"] {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  background: var(--color-canvas);
-}
+/* COD operations screens: the orders list and one order. Tokens from admin.css. */
 
 .ops-stack {
   display: grid;
@@ -48,13 +12,35 @@
   gap: var(--space-3);
 }
 
+/* Label over value, in columns — the same micro-label treatment the mockup's
+   stat tiles use. grid-auto-flow: column keeps each dt/dd pair together. */
 .ops-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1) var(--space-4);
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: auto auto;
+  justify-content: start;
+  gap: var(--space-1) var(--space-6);
   margin: 0;
+}
+
+.ops-meta dt {
   color: var(--color-ink-soft);
-  font-size: 0.8125rem;
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: var(--admin-label-tracking);
+  text-transform: uppercase;
+}
+
+.ops-meta dd {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 30rem) {
+  .ops-meta {
+    grid-auto-flow: row;
+    grid-template-rows: none;
+  }
 }
 
 .ops-internal {
@@ -112,6 +98,7 @@
 
 .ops-timeline li {
   display: grid;
+  justify-items: start;
   gap: var(--space-1);
   padding: var(--space-3) 0 var(--space-3) var(--space-6);
   border-inline-start: 1px solid var(--color-border);
@@ -155,7 +142,212 @@
   min-block-size: 5rem;
 }
 
-.admin-main :focus-visible {
-  outline: 2px solid var(--color-focus);
-  outline-offset: 2px;
+/* Orders list
+   ------------------------------------------------------------------ */
+
+/* The bulk bar is pinned to the top of the table panel, as one block. */
+.orders-panel {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.orders-bulk-plan,
+.orders-bulk-results {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+  list-style: none;
+}
+
+.orders-bulk-plan p {
+  margin: 0;
+}
+
+.orders-bulk-plan ul {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.orders-bulk-results li[data-ok="false"] {
+  color: var(--color-danger);
+}
+
+.order-select-cell {
+  inline-size: 2.5rem;
+}
+
+.admin-table tr[data-selected="true"] {
+  background: var(--admin-row-hover);
+}
+
+/* Inline per-row move, beside the status badge: quiet until it is used, and
+   short enough that the row keeps the mockup's height. */
+.row-status-select {
+  display: inline-block;
+  max-inline-size: 7.5rem;
+  block-size: 1.375rem;
+  margin-inline-start: var(--space-2);
+  padding: 0 0 0 var(--space-1);
+  border: 1px solid var(--admin-rule);
+  border-radius: 0;
+  background: var(--color-canvas);
+  color: var(--admin-ink-faint);
+  font-family: var(--admin-font-ui);
+  font-size: 0.625rem;
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.06em;
+  vertical-align: middle;
+  transition: color var(--duration-control) var(--ease-out),
+    border-color var(--duration-control) var(--ease-out);
+}
+
+.row-status-select:hover:not(:disabled) {
+  border-color: var(--admin-accent);
+  color: var(--admin-accent);
+}
+
+.row-status-select:disabled {
+  color: var(--admin-accent);
+}
+
+@media (max-width: 48rem) {
+  /* Card rows are full width; the "Select" data-label names the checkbox. */
+  .admin-data-table td.order-select-cell {
+    inline-size: auto;
+  }
+}
+
+/* Orders screen: the exact metrics the mockup's inline styles carry.
+   Scoped so the shared admin classes stay as the other screens use them. */
+
+/* Toolbar: the search field caps at 22rem-basis, the selects at 11rem, and the
+   submit button is 44px with an ink border — the same height as the controls. */
+.orders-toolbar {
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+.orders-toolbar .admin-field--wide {
+  flex: 1 1 22rem;
+}
+
+.orders-toolbar .admin-field {
+  min-inline-size: 11rem;
+}
+
+.orders-toolbar .admin-button {
+  min-block-size: 44px;
+  padding-inline: 1.25rem;
+  border-color: var(--color-ink);
+}
+
+/* Tabs: the resting label is ink-soft; the active tab keeps the black fill. */
+.orders-tabs {
+  background: var(--color-canvas);
+}
+
+.orders-tabs .admin-tab {
+  color: var(--color-ink-soft);
+}
+
+.orders-tabs .admin-tab:hover {
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+}
+
+.orders-tabs .admin-tab[aria-current="page"] {
+  color: var(--color-inverse);
+}
+
+/* Table panel: 1.25rem of padding, 1rem between bulk bar, table and footer. */
+.orders-panel {
+  gap: 1rem;
+  padding: 1.25rem;
+}
+
+/* Bulk bar buttons are one step smaller than the page's buttons. */
+.orders-panel .admin-bulkbar .admin-button {
+  min-block-size: 34px;
+  padding-inline: 0.75rem;
+  letter-spacing: 0.1em;
+}
+
+/* Placed reads as quiet mono metadata, not as a value. */
+.admin-table td.orders-placed {
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+/* Name over mono phone, on one line each. */
+.admin-table td.orders-customer {
+  white-space: nowrap;
+}
+
+.admin-table td.orders-payment {
+  color: var(--color-ink-soft);
+  font-size: 0.8125rem;
+}
+
+/* Footer: caption left, Previous (rule) and Next (ink) right, both 36px. */
+.orders-pagination .admin-button {
+  min-block-size: 36px;
+  padding-inline: 0.875rem;
+  letter-spacing: 0.1em;
+}
+
+.orders-pagination .admin-button--next {
+  border-color: var(--color-ink);
+}
+
+.orders-pagination .admin-button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+@media (max-width: 48rem) {
+  /* Stacked cards: the move control returns to its own line under the badge. */
+  .row-status-select {
+    display: block;
+    margin-block-start: var(--space-2);
+    margin-inline-start: 0;
+  }
+
+  .admin-data-table td.orders-customer {
+    white-space: normal;
+  }
+}
+
+/* Order numbers read as quiet mono links: the rule only appears on hover. */
+.orders-panel .admin-table a {
+  text-decoration: none;
+}
+
+.orders-panel .admin-table a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}
+
+/* Order detail: the same finish the mockup sets on the list.
+   ------------------------------------------------------------------ */
+
+/* <address> defaults to italic; nothing in this console is italic. */
+address.admin-definition {
+  font-style: normal;
+}
+
+/* One filled call-to-action per group, as in the mockup's header pair: the
+   first move stays black, the rest read as the outlined alternatives. */
+.ops-stack .admin-actions .admin-button--primary:not(:first-of-type) {
+  border-color: var(--admin-rule);
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+.ops-stack .admin-actions .admin-button--primary:not(:first-of-type):hover {
+  background: var(--color-surface);
 }

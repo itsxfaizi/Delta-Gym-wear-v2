@@ -42,16 +42,16 @@ function StorefrontIcon({ name }: { name: string }) {
   return <Image src={`/design-reference/assets/icons/${name}.svg`} width={24} height={24} alt="" aria-hidden="true" unoptimized />;
 }
 
+/**
+ * The nav instance is identical in every exported frame (64:5965, 72:7103,
+ * 142:4702, ...): SHOP / ABOUT / CONTACT US. About and Contact Us are home-route
+ * landmarks, so they are rooted at "/" to resolve from every route rather than
+ * becoming dead fragments off-home.
+ */
 const NAVIGATION = [
-  { href: "/", label: "Home" },
   { href: "/shop", label: "Shop" },
-  { href: "/collections/all", label: "Collection" },
-] as const;
-
-const HOME_NAVIGATION = [
-  { href: "/shop", label: "Shop" },
-  { href: "#philosophy", label: "About" },
-  { href: "#contact", label: "Contact Us" },
+  { href: "/#philosophy", label: "About" },
+  { href: "/#contact", label: "Contact Us" },
 ] as const;
 
 const SIGNED_OUT: AccountState = { signedIn: false, email: null };
@@ -82,7 +82,6 @@ export function StorefrontShell({
 }) {
   const pathname = usePathname();
   const isHome = pathname === "/";
-  const navigation = isHome ? HOME_NAVIGATION : NAVIGATION;
   const [lines, setLines] = useState<CartLine[]>([]);
   const [hasRestoredCart, setHasRestoredCart] = useState(false);
   const hasMergedServerCartRef = useRef(false);
@@ -90,10 +89,11 @@ export function StorefrontShell({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [announcement, setAnnouncement] = useState("");
   const closeRef = useRef<HTMLButtonElement>(null);
+  const menuTriggerRef = useRef<HTMLButtonElement>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const headerRef = useRef<HTMLElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
-  const footerRef = useRef<HTMLElement>(null);
+  const footerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -196,6 +196,19 @@ export function StorefrontShell({
     if (!isCartOpen) returnFocusRef.current?.focus();
   }, [isCartOpen]);
 
+  // Mobile nav is a disclosure, not a dialog: no focus trap. Every link inside
+  // closes it on click; Escape closes it and hands focus back to the trigger.
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setIsMenuOpen(false);
+      menuTriggerRef.current?.focus();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [isMenuOpen]);
+
   const add = (product: CatalogProduct, variant: CatalogVariant) => {
     if (!isVariantPurchasable(variant)) return false;
     const key = `${product.handle}:${variant.id}`;
@@ -225,11 +238,11 @@ export function StorefrontShell({
     <AccountContext.Provider value={account}>
     <CartContext.Provider value={context}>
       <header ref={headerRef} className={`site-header ${isHome ? "site-header--home" : ""}`}>
-        <button className="menu-trigger" type="button" aria-expanded={isMenuOpen} aria-controls="primary-navigation" onClick={() => setIsMenuOpen((open) => !open)}>
+        <button ref={menuTriggerRef} className="menu-trigger" type="button" aria-expanded={isMenuOpen} aria-controls="primary-navigation" onClick={() => setIsMenuOpen((open) => !open)}>
           {isMenuOpen ? "Close" : "Menu"}
         </button>
         <nav id="primary-navigation" className={isMenuOpen ? "is-open" : ""} aria-label="Primary navigation">
-          {navigation.map((item) => (
+          {NAVIGATION.map((item) => (
             <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} onClick={() => setIsMenuOpen(false)}>{item.label}</Link>
           ))}
           {/* Only mounted while the mobile panel is open, so the desktop bar keeps its three links. */}
@@ -254,7 +267,7 @@ export function StorefrontShell({
 
       <div ref={mainRef} id="main-content">{children}</div>
 
-      {!isHome ? <StorefrontFooter ref={footerRef} /> : null}
+      {!isHome ? <div ref={footerRef}><StorefrontFooter /></div> : null}
 
       <p className="sr-only" aria-live="polite">{announcement}</p>
       {isCartOpen ? (

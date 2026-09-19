@@ -2,6 +2,8 @@ import { TeamTable } from "@/components/admin/team-table";
 import { resolveAdminAccess } from "@/server/admin/guard";
 import { listMembers } from "@/server/admin/team";
 
+import "../../../../styles/admin-customers.css";
+
 export const metadata = { title: "Team — Delta admin" };
 
 /**
@@ -16,9 +18,11 @@ export default async function AdminTeamPage() {
     return (
       <>
         <div className="admin-header">
-          <h1>Team</h1>
+          <div>
+            <h1>Team</h1>
+            <p className="admin-hint">Only an owner can view or manage the team.</p>
+          </div>
         </div>
-        <p className="admin-hint">Only an owner can view or manage the team.</p>
       </>
     );
   }
@@ -32,7 +36,8 @@ export default async function AdminTeamPage() {
         <div>
           <h1>Team</h1>
           <p className="admin-hint">
-            There is no invite API available yet — add a member by the Supabase auth user id they already have.
+            Owner-only. There is no invite API available yet — add a member by the Supabase auth user id they
+            already have.
           </p>
         </div>
       </div>

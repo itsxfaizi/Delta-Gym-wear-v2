@@ -1,0 +1,155 @@
+/* Landing opening + scroll choreography — implements docs/opening-motion-spec.md.
+   HONESTY CONTRACT: the state ORDER below is source-evidenced from the 13 MCP exports
+   (real node IDs). NO duration, delay or easing here is Figma-authored — get_motion_context
+   returned no timelines. Every timing is an [APPROX] implementation proposal sitting inside
+   design.md's 120-200ms control / 180-280ms entry budget.
+   Colour and geometry values reference measured tokens in src/styles/globals.css. */
+
+/* ---- States 1-3: opening curtain (66:6339 -> 66:6450 -> 64:5965) ----
+   Pure CSS, zero JS: it therefore cannot gate hydration, cannot trap focus, and paints
+   its resting (gone) state without a script. Fixed overlay => no layout shift.
+   Timeline [APPROX]: 0-240 wordmark in, hold to 440, 440-720 amber wipe in,
+   720-1000 amber wipe out. Total 1000ms, the spec's stated curtain ceiling. */
+.opening-curtain { position: fixed; z-index: 90; inset: 0; pointer-events: none; }
+.opening-curtain-field { position: absolute; inset: 0; display: grid; place-items: center; background: var(--color-surface-invert); animation: opening-field-out 1ms linear 740ms both; }
+.opening-curtain-mark { inline-size: min(23.33vw, 21rem); block-size: auto; transform-origin: center; animation: opening-mark-in var(--duration-panel) var(--ease-brand) both; }
+.opening-curtain-wipe { position: absolute; inset: 0; background: var(--color-accent); animation: opening-wipe 560ms 440ms both; }
+
+@keyframes opening-mark-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+@keyframes opening-field-out { to { opacity: 0; } }
+/* One declaration, two 280ms segments, so neither segment exceeds the entry budget. */
+@keyframes opening-wipe {
+  0% { transform: translateY(100%); animation-timing-function: var(--ease-brand); }
+  50% { transform: translateY(0); animation-timing-function: var(--ease-brand); }
+  100% { transform: translateY(-100%); }
+}
+
+/* ---- States 4-9: scroll reveal ----
+   Resting state is the default. The hidden state is armed only where a script can
+   un-arm it, so with JS off (or IntersectionObserver missing) every section is fully
+   opaque and reachable. */
+.landing-page { background: var(--color-surface-invert); color: var(--color-on-invert); overflow-x: clip; }
+.landing-scene [data-reveal] { transition: opacity var(--duration-panel) var(--ease-out), transform var(--duration-panel) var(--ease-out); transition-delay: calc(var(--reveal-index, 0) * 60ms); }
+@media (scripting: enabled) {
+  .landing-scene[data-revealed="false"] [data-reveal] { opacity: 0; transform: var(--reveal-from, translateY(12px)); transition-delay: 0s; }
+}
+
+/* ---- State 4: black hold (66:6253) ----
+   Vertical space on the invert surface, not a pinned pause. Height is not extractable
+   from the 588px storyboard crop; proportion derived from full-a / full-d. */
+.landing-scene.landing-engineered { padding-block-start: clamp(6rem, 16vw, 14rem); }
+
+/* ---- States 5-6: engineered (66:6469 / 72:7103) — one section, two beats ---- */
+.landing-scene.landing-engineered { background: var(--color-surface-invert); }
+.landing-scene.landing-engineered h2 { font-size: clamp(2.5rem, 6.6vw, 6rem); }
+.landing-scene.landing-engineered header p { color: var(--color-on-invert-muted); }
+
+/* The five-up rail as a carousel — OWNER-SPECIFIED, no retrievable Figma prototype evidence
+   (docs/figma-audit.md, 2026-09-15). The staggered resting composition in 72:7103 IS design:
+   the centre-out height step and the flex bases below are sized so all five sit exactly
+   inside the 82rem rail at 1440, i.e. the resting frame is unchanged and scrolling only
+   appears once the viewport can no longer hold it. Scrolling is native (scroll-snap +
+   scrollBy); nothing here auto-advances and no JS animates the scroll position. */
+.landing-athlete-carousel { max-inline-size: 82rem; margin: clamp(3rem, 6vw, 5.5rem) auto var(--space-8); }
+.landing-scene .landing-athlete-strip {
+  display: flex; align-items: center; gap: clamp(0.5rem, 1.4vw, 1.5rem);
+  max-inline-size: none; margin: 0; padding-block-end: var(--space-3);
+  overflow-x: auto; overscroll-behavior-inline: contain;
+  scroll-snap-type: inline proximity; scroll-behavior: smooth;
+}
+/* min-inline-size: 0 — without it the flex auto-minimum (min-content of a sized replaced
+   element) overrides the basis and the rail no longer matches the frame at 1440. */
+.landing-scene .landing-athlete-strip img { flex: 0 0 clamp(9rem, 12.6vw, 11rem); min-inline-size: 0; scroll-snap-align: start; }
+.landing-scene .landing-athlete-strip img:nth-child(2),
+.landing-scene .landing-athlete-strip img:nth-child(4) { flex-basis: clamp(12rem, 18vw, 16rem); }
+.landing-scene .landing-athlete-strip img:nth-child(3) { flex-basis: clamp(15rem, 25vw, 22rem); }
+.landing-athlete-controls { display: flex; justify-content: center; gap: var(--space-4); margin-block-end: var(--space-8); }
+
+/* Shared chrome for the two OWNER-SPECIFIED controls (carousel prev/next, statement pause).
+   No control exists in any export, so this is an [APPROX] treatment built from existing
+   tokens; 44px minimum target, and only colour changes on hover so nothing here animates
+   layout. */
+.landing-strip-control {
+  min-block-size: 44px; min-inline-size: 44px; padding-inline: var(--space-4);
+  border: 1px solid var(--color-on-invert-subtle); background: transparent;
+  color: var(--color-on-invert);
+  font-size: 0.75rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase;
+  transition: background-color var(--duration-control) var(--ease-out), color var(--duration-control) var(--ease-out);
+}
+.landing-strip-control:hover:not([aria-disabled="true"]) { background: var(--color-accent); color: var(--color-ink); }
+.landing-strip-control[aria-disabled="true"] { border-color: var(--color-ink-ghost); color: var(--color-on-invert-subtle); cursor: not-allowed; }
+
+/* ---- State 7: philosophy (127:3240) — cream base with the measured warm corner wash ---- */
+.landing-scene.landing-philosophy {
+  background-color: var(--color-surface);
+  background-image:
+    radial-gradient(65% 65% at 0% 0%, var(--color-surface-warm), transparent 72%),
+    radial-gradient(65% 65% at 100% 100%, var(--color-surface-warm), transparent 72%);
+}
+/* Tilt is the resting state, never animated; it survives reduced motion. */
+.philosophy-stack { position: relative; display: block; inline-size: 100%; }
+.philosophy-stack img { display: block; inline-size: 100%; block-size: auto; }
+.philosophy-stack .landing-philosophy-primary { transform: rotate(-2.5deg); transform-origin: center; }
+
+/* ---- State 8: three tests (142:4702) ---- */
+.landing-scene.landing-tests { background: var(--color-surface-invert); }
+.landing-scene.landing-tests > div > p:not(.landing-tests-statement) { color: var(--color-on-invert-muted); }
+/* Measured display-line size: 37px @900 -> 59px @1440. Solid fallback declared first. */
+.landing-scene .landing-tests-statement { color: var(--color-on-invert); font-size: clamp(2.25rem, 5.6vw, 5.125rem); }
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .landing-scene .landing-tests-statement { background-image: var(--gradient-display-gold); -webkit-background-clip: text; background-clip: text; color: transparent; }
+}
+/* Statement cycle — OWNER-SPECIFIED, no retrievable Figma prototype evidence
+   (docs/figma-audit.md, 2026-09-15). The entry is [APPROX]: --duration-entry-long (280ms,
+   top of design.md's 180-280ms entry budget) on opacity + transform only. The gradient fill
+   sits on the animated element itself so the cross-fade carries it. */
+.landing-scene .landing-tests-statement { margin: 0; }
+.landing-tests-cycle { display: grid; justify-items: start; gap: var(--space-6); }
+.landing-tests-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.landing-scene .landing-tests-statement--enter { animation: tests-statement-in var(--duration-entry-long) var(--ease-out) both; }
+@keyframes tests-statement-in { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
+
+/* ---- State 9: newsletter on the cream surface (142:5060) ---- */
+.landing-scene.landing-newsletter-footer .landing-newsletter { background: var(--color-surface); }
+.landing-newsletter-pending { inline-size: min(100%, 42rem); margin-block-start: var(--space-4); color: var(--color-ink-soft); font-size: 0.875rem; }
+
+/* Measured hero line advance is 69px @900 = 110px @1440 against a 66px glyph -> ~1.2,
+   not the 0.94 the shared heading rule applies. */
+.landing-scene .landing-hero-copy h1 { line-height: 1.2; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* States 1-3 do not render at all: the page paints directly at state 3, no flash. */
+  .opening-curtain { display: none; }
+  /* States 4-9 paint at their resting state on first paint. */
+  .landing-scene[data-revealed="false"] [data-reveal] { opacity: 1; transform: none; }
+  /* The carousel still works — prev/next simply jump instead of gliding. */
+  .landing-scene .landing-athlete-strip { scroll-behavior: auto; }
+  /* The statement cycle stops entirely in JS and renders every test statically; this only
+     covers the frame between hydration and that switch. */
+  .landing-scene .landing-tests-statement--enter { animation: none; }
+}
+
+/* The landing surfaces are the invert token, not --color-ink (a text token). */
+.landing-scene .site-footer { background: var(--color-surface-invert); }
+/* full-d seats the hero copy in the upper-middle band, not flush to the fold. */
+.landing-scene.landing-hero { align-content: center; }
+
+/* ---- Responsive ----
+   DERIVED, NOT SOURCED: all 13 exports are desktop-width. There is no 320/768/1024 frame
+   for any state, so everything below is an approved inference (docs/opening-motion-spec.md). */
+@media (max-width: 63.99rem) {
+  /* State 7 stacks, copy after the photo stack. */
+  .landing-scene.landing-philosophy { grid-template-columns: 1fr; }
+  .landing-scene.landing-engineered { padding-block-start: clamp(4rem, 14vw, 7rem); }
+  /* States 5-6: the five-up rail becomes a snapping horizontal scroller rather than
+     compressing five images below a readable width. The rail is focusable so it can be
+     scrolled from the keyboard. */
+  .landing-scene .landing-athlete-strip img,
+  .landing-scene .landing-athlete-strip img:nth-child(2),
+  .landing-scene .landing-athlete-strip img:nth-child(4),
+  .landing-scene .landing-athlete-strip img:nth-child(3) { flex-basis: min(62vw, 18rem); block-size: clamp(16rem, 62vw, 22rem); }
+}
+@media (max-width: 47.99rem) {
+  /* State 9: the flush email control stacks; CTAs go full width at a 44px minimum target. */
+  .landing-scene .landing-cta-pair { flex-direction: column; align-items: stretch; }
+}

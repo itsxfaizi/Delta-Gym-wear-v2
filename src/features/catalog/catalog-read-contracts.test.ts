@@ -1,5 +1,6 @@
 import { parseCatalogSearchParams } from "./schema";
 import {
+  catalogFacets,
   filterPublishedProducts,
   getPublishedCollection,
 } from "./queries";
@@ -74,6 +75,7 @@ describe("catalog read contracts", () => {
       sizes: ["m", "s"],
       colors: ["black", "sand"],
       sort: "price-desc",
+      maxPrice: null,
     });
 
     expect(
@@ -88,6 +90,7 @@ describe("catalog read contracts", () => {
       sizes: [],
       colors: [],
       sort: "featured",
+      maxPrice: null,
     });
   });
 
@@ -130,10 +133,33 @@ describe("catalog read contracts", () => {
 
     await expect(
       getPublishedCollection(" ALL ", parseCatalogSearchParams({ q: "not-a-product" })),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       handle: "all",
       title: "All Products",
       products: [],
     });
+  });
+
+  it("bounds the price filter to published prices and rejects junk values", () => {
+    expect(parseCatalogSearchParams({ maxPrice: "5000" }).maxPrice).toBe(5000);
+    expect(parseCatalogSearchParams({ maxPrice: "-1" }).maxPrice).toBeNull();
+    expect(parseCatalogSearchParams({ maxPrice: "abc" }).maxPrice).toBeNull();
+
+    expect(
+      filterPublishedProducts(products, parseCatalogSearchParams({ maxPrice: "5000" })).map(
+        (product) => product.handle,
+      ),
+    ).toEqual(["alpha-training-top", "bravo-training-short"]);
+  });
+
+  it("derives filter facets from the published catalog only", () => {
+    expect(catalogFacets(products)).toEqual({
+      sizes: ["S", "M", "L"],
+      colors: ["Black", "Sand"],
+      priceBounds: { min: 4000, max: 6000 },
+    });
+
+    // A single-price catalog gets no range control rather than an inert one.
+    expect(catalogFacets(products.slice(0, 1)).priceBounds).toBeNull();
   });
 });

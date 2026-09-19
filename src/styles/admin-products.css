@@ -1,0 +1,150 @@
+/* Products list. Shell, table and button styles come from admin.css. */
+
+/* Row rhythm: the mockup's product rows breathe one notch wider than the
+   console default (0.625rem). */
+.products-table th,
+.products-table td {
+  padding-block: var(--space-3);
+}
+
+/* The mockup's rows sit on the type's natural leading, centred. */
+.products-table td {
+  line-height: normal;
+  vertical-align: middle;
+}
+
+.products-table td.products-title {
+  min-inline-size: 14rem;
+}
+
+/* .admin-num loses to the more specific `.admin-table td` text-align, so the
+   numeric columns and the actions column are re-aligned here. */
+.products-table th.admin-num,
+.products-table td.admin-num,
+.products-table th:last-child,
+.products-table td:last-child {
+  text-align: end;
+}
+
+/* Title reads as ink, not as a link ramp; the handle beneath carries mono. */
+.products-title a {
+  color: var(--color-ink);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.products-title a:hover {
+  color: var(--color-ink);
+  text-decoration: underline;
+}
+
+/* DRAFT / UNPUBLISHED: outlined in the soft ink the mockup uses. */
+.admin-status[data-status="draft"],
+.admin-status[data-status="unpublished"] {
+  border-color: var(--color-ink-soft);
+  background: transparent;
+  color: var(--color-ink-soft);
+}
+
+.products-updated {
+  color: var(--color-ink-soft);
+  font-family: var(--admin-font-mono);
+  font-size: 0.75rem;
+}
+
+.products-stock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 8rem;
+}
+
+.products-stock-track {
+  flex: 1;
+  block-size: 8px;
+  background: var(--color-surface);
+}
+
+.products-stock-fill {
+  display: block;
+  block-size: 8px;
+  background: var(--admin-accent);
+}
+
+.products-stock-value {
+  font-family: var(--admin-font-mono);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.products-stock[data-low="true"] .products-stock-fill {
+  background: var(--color-danger);
+}
+
+.products-stock[data-low="true"] .products-stock-value {
+  color: var(--color-danger);
+}
+
+.products-row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  justify-content: flex-end;
+}
+
+/* Row-scale variant of .admin-button: the actions column holds two. */
+.products-row-actions .admin-button {
+  min-block-size: 32px;
+  padding: 0 0.625rem;
+  font-size: var(--admin-label-size);
+  letter-spacing: 0.1em;
+}
+
+/* Edit reads as ink, the status toggle one step back from it. */
+.products-row-actions a.admin-button {
+  color: var(--color-ink);
+}
+
+.products-row-actions button.admin-button {
+  color: var(--color-ink-soft);
+}
+
+.products-toolbar .admin-field--wide {
+  flex: 1 1 22rem;
+}
+
+.products-toolbar .admin-field-status {
+  min-inline-size: 11rem;
+}
+
+.products-pagination .admin-button {
+  min-block-size: 36px;
+  padding: 0 0.875rem;
+  letter-spacing: 0.1em;
+}
+
+.products-pagination .admin-button--next {
+  border-color: var(--color-ink);
+}
+
+.products-pagination .admin-button[aria-disabled="true"] {
+  opacity: 0.5;
+}
+
+@media (max-width: 48rem) {
+  .products-row-actions {
+    justify-content: flex-start;
+  }
+
+  /* Stacked card fallback: every cell reads left-to-right again. */
+  .products-table td.admin-num,
+  .products-table td:last-child {
+    text-align: start;
+  }
+}
+
+/* Product editor: a grid field stretches its control to the row's height, so a
+   short field next to a tall one grew a 60px input. Controls keep their 44px. */
+.products-editor .admin-field {
+  align-content: start;
+}

@@ -1,20 +1,24 @@
 import "server-only";
 
-import type { OrderOps, OrderOpsRepository } from "./types";
+import { eq } from "drizzle-orm";
+
+import { createDatabase } from "@/server/db";
+import { orderOps } from "@/server/db/schema";
+import { getCatalogTenantId } from "@/server/env";
+
+import type { CallAttempt, InternalNote, OrderOps, OrderOpsRepository } from "./types";
+import type { CodStatus } from "@/features/orders/status";
+import type { StoredCallAttempt, StoredInternalNote } from "@/server/db/schema";
 
 /**
- * TEMPORARY. The ONLY stateful thing in this feature.
+ * Cash-on-delivery working state, in the `order_ops` table.
  *
- * The drizzle schema has no home for call attempts, courier/tracking or ops
- * status, and the schema is out of scope, so this module-level Map stands in
- * for the `order_ops` table. Consequences, accepted deliberately:
- *   - it is per-process, so nothing is shared between server instances;
- *   - it is in memory, so every dev-server restart or deploy wipes it.
- * Replace with a drizzle-backed OrderOpsRepository; no caller changes.
- *
- * ponytail: module Map, swap for an `order_ops` table when ops data must survive.
+ * This used to be a module-level Map, which meant every call attempt, tracking
+ * number and COD status was lost on restart and invisible to any other server
+ * instance. Nothing in the app noticed, because the ops status is an overlay
+ * read back through resolveCodStatus — it simply reverted to the database
+ * status silently.
  */
-const store = new Map<string, OrderOps>();
 
 function blank(orderId: string): OrderOps {
   return {
@@ -26,18 +30,97 @@ function blank(orderId: string): OrderOps {
   };
 }
 
-export const memoryOrderOpsRepository: OrderOpsRepository = {
+/** JSONB gives back ISO strings; the domain type wants Dates. */
+function reviveAttempt(stored: StoredCallAttempt): CallAttempt {
+  return {
+    id: stored.id,
+    outcome: stored.outcome as CallAttempt["outcome"],
+    notedAt: new Date(stored.notedAt),
+    ...(stored.note ? { note: stored.note } : {}),
+  };
+}
+
+function reviveNote(stored: StoredInternalNote): InternalNote {
+  return {
+    id: stored.id,
+    body: stored.body,
+    authorUserId: stored.authorUserId,
+    notedAt: new Date(stored.notedAt),
+  };
+}
+
+function storeAttempt(attempt: CallAttempt): StoredCallAttempt {
+  return {
+    id: attempt.id,
+    outcome: attempt.outcome,
+    notedAt: attempt.notedAt.toISOString(),
+    ...(attempt.note ? { note: attempt.note } : {}),
+  };
+}
+
+function storeNote(note: InternalNote): StoredInternalNote {
+  return {
+    id: note.id,
+    body: note.body,
+    authorUserId: note.authorUserId,
+    notedAt: note.notedAt.toISOString(),
+  };
+}
+
+function toDomain(row: typeof orderOps.$inferSelect): OrderOps {
+  return {
+    orderId: row.orderId,
+    callAttempts: (row.callAttempts ?? []).map(reviveAttempt),
+    lastAttemptAt: row.lastAttemptAt,
+    nextFollowUpAt: row.nextFollowUpAt,
+    internalNotes: (row.internalNotes ?? []).map(reviveNote),
+    ...(row.courier ? { courier: row.courier } : {}),
+    ...(row.trackingNumber ? { trackingNumber: row.trackingNumber } : {}),
+    ...(row.trackingUrl ? { trackingUrl: row.trackingUrl } : {}),
+    ...(row.dispatchedAt ? { dispatchedAt: row.dispatchedAt } : {}),
+    ...(row.opsStatus ? { opsStatus: row.opsStatus as CodStatus } : {}),
+  };
+}
+
+export const databaseOrderOpsRepository: OrderOpsRepository = {
   async get(orderId) {
-    return store.get(orderId) ?? blank(orderId);
+    const [row] = await createDatabase().select().from(orderOps).where(eq(orderOps.orderId, orderId)).limit(1);
+    return row ? toDomain(row) : blank(orderId);
   },
+
   async upsert(orderId, patch) {
-    const next = patch(store.get(orderId) ?? blank(orderId));
-    store.set(orderId, next);
-    return next;
+    // Read-modify-write, so the row is locked for the duration: two operators
+    // logging a call on the same order must not drop one another's attempt.
+    return createDatabase().transaction(async (tx) => {
+      const [existing] = await tx
+        .select()
+        .from(orderOps)
+        .where(eq(orderOps.orderId, orderId))
+        .limit(1)
+        .for("update");
+
+      const next = patch(existing ? toDomain(existing) : blank(orderId));
+      const values = {
+        orderId,
+        tenantId: getCatalogTenantId(),
+        callAttempts: next.callAttempts.map(storeAttempt),
+        lastAttemptAt: next.lastAttemptAt,
+        nextFollowUpAt: next.nextFollowUpAt,
+        internalNotes: next.internalNotes.map(storeNote),
+        courier: next.courier ?? null,
+        trackingNumber: next.trackingNumber ?? null,
+        trackingUrl: next.trackingUrl ?? null,
+        dispatchedAt: next.dispatchedAt ?? null,
+        opsStatus: next.opsStatus ?? null,
+        updatedAt: new Date(),
+      };
+
+      await tx
+        .insert(orderOps)
+        .values(values)
+        .onConflictDoUpdate({ target: orderOps.orderId, set: values });
+
+      return next;
+    });
   },
 };
-
-/** Test-only escape hatch; production code must never call this. */
-export function __resetOrderOpsStore(): void {
-  store.clear();
-}

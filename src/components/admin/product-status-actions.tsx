@@ -4,22 +4,19 @@ import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
 
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { changeProductStatus } from "@/features/admin/actions";
 import type { ProductStatus } from "@/features/admin/schemas";
 
-const TRANSITIONS: readonly { status: ProductStatus; label: string }[] = [
-  { status: "published", label: "Publish" },
-  { status: "unpublished", label: "Unpublish" },
-  { status: "archived", label: "Archive" },
-];
+/**
+ * The one publish toggle. Archiving stays in the product form's status field,
+ * so a list row cannot archive by mis-click.
+ */
+const NEXT = (status: ProductStatus) =>
+  status === "published"
+    ? ({ status: "unpublished", label: "Unpublish" } as const)
+    : ({ status: "published", label: "Publish" } as const);
 
-/** Publisher-only shortcuts; a non-publisher gets a refusal from the action. */
+/** Publisher-only shortcut; a non-publisher gets a refusal from the action. */
 export function ProductStatusActions({ productId, status }: { productId: string; status: ProductStatus }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -36,18 +33,11 @@ export function ProductStatusActions({ productId, status }: { productId: string;
     });
   }
 
+  const transition = NEXT(status);
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger className="admin-button" disabled={isPending}>
-        Status
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        {TRANSITIONS.filter((transition) => transition.status !== status).map((transition) => (
-          <DropdownMenuItem key={transition.status} onSelect={() => move(transition.status)}>
-            {transition.label}
-          </DropdownMenuItem>
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button className="admin-button" type="button" disabled={isPending} onClick={() => move(transition.status)}>
+      {transition.label}
+    </button>
   );
 }

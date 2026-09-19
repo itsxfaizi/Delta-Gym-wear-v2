@@ -1,67 +1,115 @@
-/* Admin console. Square editorial system, tokens from globals.css. */
+/* Admin console. Square editorial ops system, layered on globals.css tokens. */
+
+[data-route-surface="admin"] {
+  /* --admin-font-ui (Outfit) and --admin-font-mono (IBM Plex Mono) are declared
+     on this element by next/font in the admin layout, so the storefront's type
+     stack is untouched. They are only read here. */
+
+  /* The teal ramp the console runs on. --color-accent stays the store's gold. */
+  --admin-accent: #0f6f8c;
+  --admin-accent-strong: #0b5468;
+  --admin-accent-mid: #b6d4dc;
+  --admin-accent-soft: #cfe4ea;
+
+  /* Rules and surfaces. --color-border (#d9d9d9) is the structural rule; rows
+     sit on a lighter one so a long table does not read as a grid. */
+  --admin-rule: var(--color-border);
+  --admin-rule-soft: #ececec;
+  --admin-row-hover: #f7f7f7;
+  --admin-ink-faint: #6f7075;
+
+  /* Uppercase tracked label — the console's one recurring micro-treatment. */
+  --admin-label-size: 0.625rem;
+  --admin-label-tracking: 0.14em;
+  --admin-label-weight: 650;
+
+  font-family: var(--admin-font-ui);
+}
+
+[data-route-surface="admin"] a {
+  color: var(--admin-accent);
+}
+
+[data-route-surface="admin"] a:hover {
+  color: var(--admin-accent-strong);
+}
 
 .admin-shell {
   display: grid;
-  grid-template-columns: 15rem minmax(0, 1fr);
+  grid-template-columns: 14rem minmax(0, 1fr);
   min-block-size: 100svh;
-  background: var(--color-surface);
+  background: var(--color-canvas);
   color: var(--color-ink);
 }
+
+/* Shell: sidebar */
 
 .admin-sidebar {
   display: grid;
   align-content: start;
   gap: var(--space-8);
-  padding: var(--space-6) var(--space-4);
-  border-inline-end: 1px solid var(--color-border);
+  padding-block: var(--space-6) var(--space-8);
+  border-inline-end: 1px solid var(--admin-rule);
   background: var(--color-canvas);
   position: sticky;
   inset-block-start: 0;
   block-size: 100svh;
+  overflow: auto;
 }
 
 .admin-brand {
   display: grid;
   gap: 0.125rem;
-  font-size: 0.8125rem;
-  font-weight: 750;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
+  padding-inline: 1.25rem;
   text-decoration: none;
   color: var(--color-ink);
 }
 
-.admin-brand span {
+.admin-brand:hover {
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.admin-brand-mark {
+  font-size: 0.875rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.admin-brand-sub {
   color: var(--color-ink-soft);
-  font-size: 0.625rem;
-  letter-spacing: 0.28em;
+  font-size: var(--admin-label-size);
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
 }
 
 .admin-sidebar-foot {
-  align-self: end;
   margin: 0;
+  padding-inline: 1.25rem;
+  padding-block-start: var(--space-4);
+  border-block-start: 1px solid var(--admin-rule);
   color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  line-height: 1.5;
 }
 
 .admin-nav {
   display: grid;
-  gap: var(--space-1);
+  gap: 1px;
 }
 
 .admin-nav a {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
   min-block-size: 44px;
-  padding-inline: var(--space-3);
+  padding-inline: 1.25rem;
   border-inline-start: 3px solid transparent;
   color: var(--color-ink-soft);
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.12em;
   text-decoration: none;
   text-transform: uppercase;
   transition: color var(--duration-control) var(--ease-out),
@@ -71,13 +119,16 @@
 .admin-nav a:hover {
   background: var(--color-surface);
   color: var(--color-ink);
+  text-decoration: none;
 }
 
 .admin-nav a[aria-current="page"] {
-  border-inline-start-color: var(--color-accent);
+  border-inline-start-color: var(--color-ink);
   background: var(--color-surface);
   color: var(--color-ink);
 }
+
+/* Shell: top bar */
 
 .admin-frame {
   display: grid;
@@ -93,9 +144,10 @@
   align-items: center;
   gap: var(--space-3);
   min-block-size: 4rem;
-  padding-inline: var(--space-4);
-  border-block-end: 1px solid var(--color-border);
-  background: var(--color-canvas);
+  padding-inline: 1.75rem;
+  border-block-end: 1px solid var(--admin-rule);
+  background: rgb(255 255 255 / 0.95);
+  backdrop-filter: blur(8px);
 }
 
 .admin-bar-title {
@@ -113,10 +165,9 @@
   gap: var(--space-2);
   flex: 1 1 8rem;
   min-inline-size: 0;
-  max-inline-size: 28rem;
-  margin-inline-start: auto;
+  max-inline-size: 24rem;
   padding-inline: var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--admin-rule);
   background: var(--color-canvas);
   color: var(--color-ink-soft);
 }
@@ -134,6 +185,65 @@
 
 .admin-search:focus-within {
   border-color: var(--color-ink);
+}
+
+/* The call queue, read from the same snapshot the new-order alerts poll. */
+.admin-live-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--admin-accent);
+  color: var(--admin-accent);
+  font-size: var(--admin-label-size);
+  font-weight: 700;
+  letter-spacing: var(--admin-label-tracking);
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.admin-live-pill:hover {
+  background: var(--admin-accent-soft);
+  color: var(--admin-accent-strong);
+  text-decoration: none;
+}
+
+.admin-live-dot {
+  inline-size: 7px;
+  block-size: 7px;
+  background: currentcolor;
+  animation: admin-pulse 1.8s var(--ease-out) infinite;
+}
+
+@keyframes admin-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-live-dot {
+    animation: none;
+  }
+}
+
+.admin-avatar {
+  display: grid;
+  place-items: center;
+  inline-size: 36px;
+  block-size: 36px;
+  flex: 0 0 auto;
+  border: 0;
+  background: var(--color-ink);
+  color: var(--color-inverse);
+  cursor: pointer;
 }
 
 .admin-icon-button {
@@ -195,7 +305,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 64rem) {
+@media (max-width: 60rem) {
   .admin-shell {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -209,6 +319,13 @@
   }
 }
 
+@media (min-width: 60.0625rem) {
+  /* The sidebar already says where you are. */
+  .admin-bar-title {
+    display: none;
+  }
+}
+
 @media (max-width: 30rem) {
   .admin-bar-title {
     display: none;
@@ -219,75 +336,67 @@
   }
 }
 
+/* Page rhythm */
+
 .admin-main {
   display: grid;
   align-content: start;
-  gap: var(--space-8);
+  gap: var(--space-6);
   min-inline-size: 0;
-  padding: var(--space-8) var(--space-6) var(--space-16);
+  padding: var(--space-8) 1.75rem var(--space-16);
 }
 
 .admin-loading {
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-6);
 }
 
 .admin-main h1 {
   margin: 0;
-  font-size: clamp(1.5rem, 3vw, 2.25rem);
-  font-weight: 700;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  text-transform: uppercase;
 }
 
 .admin-main h2 {
   margin: 0 0 var(--space-4);
-  font-size: 0.8125rem;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
+/* Page header: h1 + caption on the left, actions on the right. */
 .admin-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: flex-end;
   justify-content: space-between;
   gap: var(--space-4);
 }
 
-.admin-panel {
-  padding: var(--space-6);
-  border: 1px solid var(--color-border);
-  background: var(--color-canvas);
-}
-
-.admin-grid {
+.admin-header > div:first-child {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: var(--space-2);
 }
 
-.admin-stat {
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
+.admin-header .admin-hint {
+  margin: 0;
+  font-size: 0.8125rem;
+}
+
+.admin-panel {
+  /* Grid items default to min-content width, which let wide tables overflow the
+     panel and clip their last column. */
+  min-inline-size: 0;
+  padding: var(--space-6);
+  border: 1px solid var(--admin-rule);
   background: var(--color-canvas);
 }
 
-.admin-stat dt {
-  color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.admin-stat dd {
-  margin: var(--space-2) 0 0;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
+/* Tables */
 
 .admin-table-scroll {
   overflow-x: auto;
@@ -301,52 +410,90 @@
 
 .admin-table th,
 .admin-table td {
-  padding: var(--space-3);
-  border-block-end: 1px solid var(--color-border);
+  padding: 0.625rem var(--space-3);
   text-align: start;
   vertical-align: top;
   white-space: nowrap;
 }
 
 .admin-table th {
+  padding-block: var(--space-2);
+  border-block-end: 1px solid var(--admin-rule);
   color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: var(--admin-label-tracking);
   text-transform: uppercase;
+}
+
+.admin-table td {
+  border-block-end: 1px solid var(--admin-rule-soft);
+}
+
+.admin-table tbody tr:hover {
+  background: var(--admin-row-hover);
+}
+
+.admin-table th:first-child,
+.admin-table td:first-child {
+  padding-inline-start: 0;
+}
+
+.admin-table th:last-child,
+.admin-table td:last-child {
+  padding-inline-end: 0;
 }
 
 .admin-table td.admin-cell-wrap {
   white-space: normal;
 }
 
-.admin-status {
-  display: inline-block;
-  padding: 0.125rem var(--space-2);
-  border: 1px solid var(--color-border);
+/* Numerals, IDs, SKUs and phone numbers carry the mono face. */
+.admin-mono {
+  font-family: var(--admin-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* A numeric column: mono, tabular, right-aligned in both header and body.
+   `.admin-table th, td` sets text-align: start at (0,1,1), so the bare
+   `.admin-num` never won inside a table. Qualifying it fixes every admin
+   table at once; the stacked phone fallbacks reset it per screen. */
+.admin-num {
+  font-family: var(--admin-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  text-align: end;
+}
+
+.admin-table th.admin-num,
+.admin-table td.admin-num {
+  text-align: end;
+}
+
+th.admin-num {
+  font-family: var(--admin-font-ui);
+  font-size: var(--admin-label-size);
+}
+
+/* The quiet second line under a name: phone, SKU, variant. */
+.admin-meta {
+  display: block;
+  color: var(--admin-ink-faint);
+  font-family: var(--admin-font-mono);
   font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
-.admin-status[data-status="published"],
-.admin-status[data-status="delivered"] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-inverse);
-}
-
-.admin-status[data-status="archived"],
-.admin-status[data-status="cancelled"] {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-}
-
-.admin-filters {
+/* Filter / search bar: a bordered strip of .admin-field controls + submit. */
+.admin-toolbar {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-end;
   gap: var(--space-3);
-  align-items: end;
+  min-inline-size: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--admin-rule);
+  background: var(--color-canvas);
 }
 
 .admin-field {
@@ -360,26 +507,28 @@
 }
 
 .admin-field label,
+.admin-field > span,
 .admin-checkbox {
   color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.1em;
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: var(--admin-label-tracking);
   text-transform: uppercase;
 }
 
 .admin-field input,
 .admin-field select,
 .admin-field textarea,
-.admin-filters input,
-.admin-filters select {
+.admin-toolbar input,
+.admin-toolbar select {
   min-block-size: 44px;
   padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--admin-rule);
   border-radius: 0;
   background: var(--color-canvas);
   color: inherit;
   font: inherit;
+  font-size: 0.875rem;
 }
 
 .admin-field textarea {
@@ -387,20 +536,152 @@
   resize: vertical;
 }
 
+/* Tab row with counts. Buttons or links; mark the current one with
+   aria-current="page" (links) or aria-selected="true" (tablist). */
+.admin-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  min-inline-size: 0;
+}
+
+.admin-tab {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: 0 0 auto;
+  min-block-size: 40px;
+  padding-inline: 0.875rem;
+  border: 1px solid var(--admin-rule);
+  margin-inline-start: -1px;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.admin-tab:hover {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.admin-tab[aria-current="page"],
+.admin-tab[aria-selected="true"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-inverse);
+  z-index: 1;
+}
+
+.admin-tab-count {
+  color: var(--color-ink-soft);
+  font-family: var(--admin-font-mono);
+  font-weight: 500;
+}
+
+.admin-tab[aria-current="page"] .admin-tab-count,
+.admin-tab[aria-selected="true"] .admin-tab-count {
+  color: var(--admin-accent-mid);
+}
+
+/* Bulk-action strip above a table. */
+.admin-bulkbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: 0.625rem 0.875rem;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+/* Pagination footer: count on the left, previous/next on the right. */
+.admin-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+}
+
+.admin-pagination .admin-actions {
+  gap: var(--space-2);
+}
+
+/* Status badge. Tones come from ORDER_STATUS_META in features/orders/status.ts. */
+
+.admin-status {
+  display: inline-block;
+  padding: 0.125rem var(--space-2);
+  border: 1px solid var(--admin-rule);
+  color: var(--color-ink-soft);
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* In flight: confirmed, packed, shipped (info) and confirmation_required (warn). */
+.admin-status[data-tone="info"],
+.admin-status[data-tone="warn"],
+.admin-status[data-status="pending"] {
+  border-color: var(--admin-accent);
+  background: transparent;
+  color: var(--admin-accent);
+}
+
+/* Settled as cash. */
+.admin-status[data-tone="success"],
+.admin-status[data-status="published"] {
+  border-color: var(--color-ink);
+  background: var(--color-ink);
+  color: var(--color-inverse);
+}
+
+/* refused, returned_to_sender. */
+.admin-status[data-tone="danger"],
+.admin-status[data-status="archived"] {
+  border-color: var(--color-danger);
+  background: transparent;
+  color: var(--color-danger);
+}
+
+/* cancelled and anything the UI has never heard of stay grey. */
+.admin-status[data-status="cancelled"] {
+  border-color: var(--admin-rule);
+  background: transparent;
+  color: var(--color-ink-soft);
+}
+
+/* Buttons */
+
 .admin-error {
   color: var(--color-danger);
   font-size: 0.8125rem;
 }
 
 .admin-button {
-  min-block-size: 44px;
+  min-block-size: 38px;
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-ink);
+  border: 1px solid var(--admin-rule);
   background: var(--color-canvas);
   color: var(--color-ink);
-  font-size: 0.75rem;
+  font-family: inherit;
+  font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   text-decoration: none;
   display: inline-flex;
@@ -408,13 +689,29 @@
   transition: background var(--duration-control) var(--ease-out);
 }
 
+.admin-button:hover {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
 .admin-button--primary {
+  border-color: var(--color-ink);
   background: var(--color-ink);
+  color: var(--color-inverse);
+}
+
+.admin-button--primary:hover {
+  background: #292a2d;
   color: var(--color-inverse);
 }
 
 .admin-button--danger {
   border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.admin-button--danger:hover {
   color: var(--color-danger);
 }
 
@@ -425,7 +722,7 @@
 .admin-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .admin-form {
@@ -443,7 +740,7 @@
   display: grid;
   gap: var(--space-4);
   padding: var(--space-4);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--admin-rule);
 }
 
 .admin-repeat-head {
@@ -466,11 +763,14 @@
 .admin-empty,
 .admin-hint {
   color: var(--color-ink-soft);
-  font-size: 0.875rem;
+  font-size: 0.75rem;
 }
 
 .admin-columns {
   display: grid;
+  /* Panels size to their content: an empty queue is a small card, not a tall
+     blank box stretched to match the longest list in the row. */
+  align-items: start;
   gap: var(--space-6);
   grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
 }
@@ -484,8 +784,9 @@
 
 .admin-definition dt {
   color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  letter-spacing: 0.1em;
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: var(--admin-label-tracking);
   text-transform: uppercase;
 }
 
@@ -515,16 +816,16 @@
   display: grid;
   gap: 1px;
   grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
-  border: 1px solid var(--color-border);
-  background: var(--color-border);
+  border: 1px solid var(--admin-rule);
+  background: var(--admin-rule);
 }
 
 .kpi-card {
   display: grid;
-  align-content: start;
-  gap: var(--space-2);
+  align-content: space-between;
+  gap: var(--space-4);
   min-inline-size: 0;
-  padding: var(--space-4) var(--space-4) var(--space-6);
+  padding: 1.125rem 1.125rem 1rem;
   background: var(--color-canvas);
   color: inherit;
   text-decoration: none;
@@ -533,45 +834,82 @@
 
 a.kpi-card:hover {
   background: var(--color-surface);
+  color: inherit;
+  text-decoration: none;
 }
 
-.kpi-card[data-alert] {
-  box-shadow: inset 3px 0 0 var(--color-accent);
+.kpi-card[data-tone="accent"] {
+  box-shadow: inset 3px 0 0 var(--admin-accent);
+}
+
+.kpi-card[data-tone="danger"] {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+.kpi-body {
+  display: grid;
+  gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .kpi-label {
   color: var(--color-ink-soft);
-  font-size: 0.6875rem;
-  font-weight: 650;
-  letter-spacing: 0.1em;
+  font-size: var(--admin-label-size);
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
 .kpi-value {
-  font-size: clamp(1.375rem, 2.4vw, 1.875rem);
+  font-size: clamp(1.5rem, 2.3vw, 1.875rem);
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.05;
   overflow-wrap: anywhere;
-}
-
-.kpi-hint,
-.kpi-trend-caption {
-  color: var(--color-ink-soft);
-  font-size: 0.75rem;
 }
 
 .kpi-trend {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: 0.375rem;
   margin: 0;
-  font-size: 0.75rem;
-  font-weight: 650;
+  color: var(--admin-accent);
+  font-family: var(--admin-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
 }
 
 .kpi-trend[data-direction="down"] {
   color: var(--color-danger);
+}
+
+.kpi-trend[data-direction="flat"] {
+  color: var(--color-ink-soft);
+}
+
+.kpi-hint,
+.kpi-trend-caption {
+  color: var(--admin-ink-faint);
+  font-size: 0.75rem;
+}
+
+.kpi-trend-caption {
+  font-size: 0.6875rem;
+}
+
+/* Only rendered where a real daily series exists behind the figure. */
+.kpi-spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  block-size: 24px;
+}
+
+.kpi-spark > span {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  background: var(--admin-accent-soft);
 }
 
 .admin-charts {
@@ -586,7 +924,7 @@ a.kpi-card:hover {
   gap: var(--space-4);
   min-inline-size: 0;
   padding: var(--space-6);
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--admin-rule);
   background: var(--color-canvas);
 }
 
@@ -595,11 +933,11 @@ a.kpi-card:hover {
   flex-wrap: wrap;
   align-items: start;
   justify-content: space-between;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
 .chart-card-head h2 {
-  margin-block-end: var(--space-1);
+  margin-block-end: 0.375rem;
 }
 
 .chart-card-figure {
@@ -623,7 +961,7 @@ a.kpi-card:hover {
   display: grid;
   place-items: center;
   min-block-size: 15rem;
-  border: 1px dashed var(--color-border);
+  border: 1px dashed var(--admin-rule);
   text-align: center;
 }
 
@@ -647,7 +985,7 @@ a.kpi-card:hover {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-1) var(--space-4);
   padding-block: var(--space-3);
-  border-block-end: 1px solid var(--color-border);
+  border-block-end: 1px solid var(--admin-rule-soft);
 }
 
 .admin-list li > span:last-child {
@@ -659,24 +997,6 @@ a.kpi-card:hover {
 
 .admin-list li:last-child {
   border-block-end: 0;
-}
-
-.admin-status[data-tone="danger"] {
-  border-color: var(--color-danger);
-  color: var(--color-danger);
-  background: transparent;
-}
-
-.admin-status[data-tone="warn"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent);
-  color: var(--color-ink);
-}
-
-.admin-status[data-tone="success"] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
-  color: var(--color-inverse);
 }
 
 .admin-error-state {
@@ -711,7 +1031,7 @@ a.kpi-card:hover {
 
   .admin-data-table tr {
     padding-block: var(--space-3);
-    border-block-end: 1px solid var(--color-border);
+    border-block-end: 1px solid var(--admin-rule);
   }
 
   .admin-data-table td {
@@ -722,13 +1042,16 @@ a.kpi-card:hover {
     padding-inline: 0;
     border: 0;
     white-space: normal;
+    text-align: start;
   }
 
   .admin-data-table td::before {
     content: attr(data-label);
     color: var(--color-ink-soft);
-    font-size: 0.6875rem;
-    letter-spacing: 0.1em;
+    font-family: var(--admin-font-ui);
+    font-size: var(--admin-label-size);
+    font-weight: var(--admin-label-weight);
+    letter-spacing: var(--admin-label-tracking);
     text-transform: uppercase;
   }
 
@@ -747,7 +1070,7 @@ a.kpi-card:hover {
   block-size: 4.5rem;
   flex: 0 0 auto;
   object-fit: cover;
-  border: 1px solid var(--color-border);
+  border: 1px solid var(--admin-rule);
   background: var(--color-canvas);
 }
 
@@ -755,71 +1078,6 @@ a.kpi-card:hover {
   display: grid;
   place-items: center;
   color: var(--color-ink-soft);
-}
-
-/* Live order alerts (admin top bar). */
-.admin-order-alerts {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.admin-alert-banner {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-ink);
-  background: var(--color-accent);
-  color: var(--color-ink);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.admin-alert-banner button {
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font-weight: 700;
-  text-decoration: underline;
-  cursor: pointer;
-  padding: 0;
-}
-
-.admin-alert-toggle {
-  display: grid;
-  place-items: center;
-  inline-size: 36px;
-  block-size: 36px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--color-ink-soft);
-  cursor: pointer;
-}
-
-.admin-alert-toggle[aria-pressed="true"] {
-  color: var(--color-ink);
-  border-color: var(--color-border);
-}
-
-.admin-alert-panel {
-  position: absolute;
-  inset-block-start: calc(100% + var(--space-2));
-  inset-inline-end: 0;
-  z-index: 20;
-  display: grid;
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  background: var(--color-surface);
-  min-inline-size: 14rem;
-}
-
-.admin-alert-panel label {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: 0.8125rem;
 }
 
 /* New-order banner: additive only, so nothing the operator is reading moves. */

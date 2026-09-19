@@ -1,6 +1,6 @@
-import { isLastActiveOwner, type MemberRow } from "./team";
+import { isLastActiveOwner, type Membership } from "./team";
 
-const members: MemberRow[] = [
+const members: Membership[] = [
   { authUserId: "owner-1", role: "owner", status: "active" },
   { authUserId: "owner-2", role: "owner", status: "suspended" },
   { authUserId: "editor-1", role: "catalog_editor", status: "active" },
@@ -20,7 +20,7 @@ describe("isLastActiveOwner", () => {
   });
 
   it("is false once a second active owner exists", () => {
-    const withTwoOwners = [...members, { authUserId: "owner-3", role: "owner", status: "active" } as MemberRow];
+    const withTwoOwners = [...members, { authUserId: "owner-3", role: "owner", status: "active" } as Membership];
     expect(isLastActiveOwner(withTwoOwners, "owner-1")).toBe(false);
   });
 

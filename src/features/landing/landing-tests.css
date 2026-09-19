@@ -1,0 +1,247 @@
+/* State 8 — three tests (142:4702).
+   SOURCE: design-reference/motion/figma-proto-recording-2026-09-15.mov, frames 510-803
+   (60.000 fps, 1 frame = 16.667 ms). The GEOMETRY below is measured from that recording.
+   The ADVANCE MECHANISM is not — see the departure note at the end of this comment.
+
+   What the recording shows, and what this file takes from it:
+   - The statements are ONE continuous column, hard-clipped by a fixed window measured at
+     source y 1242-1634 = 196 CSS px = exactly 2 line pitches (line pitch 101 CSS px,
+     cap height 56 CSS px -> font-size ~78 CSS px, line-height ~1.29 at 1440).
+     The clip is a 1-pixel luminance step (5 -> 97) at both edges: no feather, no per-line
+     opacity, no cross-fade.
+   - The gold ramp is anchored to the statement BLOCK, not to each line: one white->gold
+     ramp spans design x 90 -> 795 (a 705 CSS px run = the width of the longest line,
+     "HOLDS STRUCTURE"), and every line samples it at its own x. Short lines stop part-way
+     ("REPEATED" ends at 57% of the run). Hence the gradient sits on the list, not the item.
+     Endpoints stay on --gradient-display-gold: this H.264 decode reads 4-10 units darker
+     than the PNG exports across every sampled colour, so the PNG-derived token is kept.
+
+   DEPARTURE FROM THE PROTOTYPE — OWNER-SPECIFIED. In the recording the roll is SCROLL-
+   SCRUBBED inside a pinned section: position is a pure function of scroll offset, forwards
+   and backwards (verified f637-f655 rolling BACKWARD two statements in one gesture), with
+   no intrinsic duration. The owner asked for it to advance on its own instead, so this is
+   now a timed autoplay: 2s per statement, 300ms to roll between them. The section is
+   therefore NOT pinned and NOT three viewports tall — it is an ordinary section, because
+   with no scroll timeline there is nothing for that extra scroll distance to drive.
+   The 300ms roll is the operator's trackpad gesture length from the measurement notes; it
+   is the closest thing to an authored transition the recording contains.
+
+   Still no scroll listener, no rAF loop and no interval: one CSS animation. The only JS is
+   the pause toggle WCAG 2.2.2 requires once the thing moves by itself.
+   Below 48rem, and under prefers-reduced-motion, the base rules paint all three statements
+   as a plain static list and the pause control is hidden — nothing is moving to pause. */
+
+/* ---- Resting state: every statement, statically, in the DOM and readable. ---- */
+/* The display type lives on the WINDOW, not the roll, because the window's clip height is
+   `2lh` — `lh` resolves against the element's OWN line-height, so leaving these on the roll
+   sized the clip from the inherited body line-height and showed a ~48px sliver of one line.
+   The roll inherits all of it, so the keyframe's `-2lh` still measures the same pitch. */
+.landing-scene .landing-tests-window {
+  inline-size: min(100%, 9.5em);
+  margin: clamp(3.5rem, 10vh, 7rem) 0 0;
+  /* Measured: 78 CSS px glyph on a 101 CSS px pitch at 1440 (5.4vw = 77.8px there). */
+  font-size: clamp(2.25rem, 5.4vw, 4.875rem);
+  font-weight: 800;
+  line-height: 1.29;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+.landing-scene .landing-tests-roll {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+}
+.landing-scene .landing-tests-roll .landing-tests-statement {
+  max-inline-size: none;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--color-on-invert);
+  /* Block-anchored ramp: the per-line fill declared in landing-sequence.css is dropped. */
+  background-image: none;
+}
+@supports (background-clip: text) or (-webkit-background-clip: text) {
+  .landing-scene .landing-tests-roll {
+    background-image: var(--gradient-display-gold);
+    background-repeat: no-repeat;
+    -webkit-background-clip: text;
+    background-clip: text;
+  }
+  .landing-scene .landing-tests-roll .landing-tests-statement { color: transparent; }
+}
+
+/* These two are the OFF state, and they sit here rather than below the @media on purpose:
+   the rules that switch them on are the same specificity, so whichever is declared last wins.
+   Declared after, they beat the @media and the clone and the pause button stay hidden even
+   when the roll is running. */
+/* A duplicated statement would just read twice in the static list. */
+.landing-scene .landing-tests-statement--clone { display: none; }
+/* Pause control, hidden wherever nothing animates: a control that pauses nothing is worse
+   than no control. Deliberately quiet — this is a decorative rotation, not a media player. */
+.landing-scene .landing-tests-pause { display: none; }
+
+/* ---- The timed roll. ---- */
+/* Below 48rem, and under reduced motion, the section stays in normal flow with all three
+   statements listed — the spec's degradation rule, and the honest answer for anyone who has
+   asked the OS not to animate things at them. */
+@media (min-width: 48rem) and (prefers-reduced-motion: no-preference) {
+  /* The window clips; the roll moves. They MUST be two elements: `background-clip: text`
+     builds its mask from the UNTRANSFORMED glyph positions of its descendants, so with the
+     ramp and the transform on one element the first statement stayed painted at the window
+     top no matter how far the column had rolled. */
+  .landing-scene .landing-tests-window {
+    block-size: 2lh; /* measured 196 CSS px = 2 line pitches */
+    overflow: hidden;
+  }
+  .landing-scene .landing-tests-roll {
+    gap: 0;
+    /* count x 2s. Easing applies to every segment, but the hold segments hold the same
+       value, so it is only ever visible on the 300ms rolls. */
+    animation: tests-roll calc(var(--tests-count, 3) * 2s) var(--ease-out) infinite;
+  }
+  .landing-scene .landing-tests-window[data-paused="true"] .landing-tests-roll {
+    animation-play-state: paused;
+  }
+  .landing-scene .landing-tests-roll .landing-tests-statement { block-size: 2lh; }
+  /* The loop clone only makes sense while the column is looping. */
+  .landing-scene .landing-tests-statement--clone { display: revert; }
+  .landing-scene .landing-tests-pause { display: inline-flex; }
+}
+
+.landing-scene .landing-tests-pause {
+  align-items: center;
+  margin-block-start: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  border-radius: 999px;
+  background: none;
+  color: var(--color-on-invert-muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--duration-control, 160ms) var(--ease-out),
+              color var(--duration-control, 160ms) var(--ease-out);
+}
+.landing-scene .landing-tests-pause:hover { border-color: rgb(255 255 255 / 0.6); color: var(--color-on-invert); }
+
+@keyframes tests-roll {
+  /* One statement is 2lh, so each step travels 2lh and the column ends at (count) x -2lh,
+     on the trailing clone of statement 1 — visually identical to 0%, so the loop is seamless.
+     Percentages are of the 6s cycle: hold 1.7s (28.33%), roll 0.3s (5%), x3.
+     HARDCODED FOR THREE STATEMENTS. Adding a fourth means editing these stops as well as
+     the array in landing-tests-statement.tsx. */
+  0%, 28.333%    { transform: translateY(0); }
+  33.333%, 61.667% { transform: translateY(-2lh); }
+  66.667%, 95%   { transform: translateY(-4lh); }
+  100%           { transform: translateY(-6lh); }
+}
+
+/* ---- Decorative motifs (244:1850 and siblings) ----
+   Previously omitted for want of a vector export. get_design_context on 244:1850 returns
+   the square verbatim, so it is no longer a guess:
+
+     150 x 149, rounded 8px, 1px INSIDE stroke #353535, opacity 90%,
+     fill linear-gradient(134.95deg, rgba(19,20,23,.1) 0%, rgba(53,53,53,.1) 100%)
+
+   Three of them per cluster, each offset ~29%/34% of the square from the last (measured off
+   the prototype recording, same source as the roll above), middle one carrying the gold
+   stroke. Two clusters: top-left and bottom-right. Purely decorative, so aria-hidden and
+   built from one element plus its two pseudo-elements rather than nine divs.
+
+   They live on the PIN, not the section: the recording shows them pixel-static while the
+   statement column scrubs behind the heading. */
+/* The section is an ordinary block now, so it must be tall enough to hold the motifs and
+   seat the copy where Figma seats it (~1/3 down). globals.css gives the section
+   min-block-size: min(56rem, 76vw) and align-items: end; stretching the frame to fill it is
+   what gives the absolutely-positioned squares their room. */
+.landing-scene.landing-tests {
+  /* globals.css asks for min(56rem, 76vw); at 1440 the rem arm wins and caps the section at
+     896px, which is shorter than the 1100px Figma frame and leaves the top-left cluster no
+     room above the heading. Restore the proportion, still capped so it cannot run away on a
+     very wide screen. The section is already position: relative, so it is what the motifs
+     are positioned against. */
+  min-block-size: min(78vw, 70rem);
+  align-items: center;
+}
+.landing-tests-frame { position: relative; display: grid; }
+
+/* The element itself is square #1; ::before and ::after are #2 and #3. */
+.landing-tests-motif {
+  --sq: clamp(4.5rem, 10.4vw, 9.375rem); /* 150px at 1440 */
+  position: absolute;
+  z-index: 0;
+  inline-size: var(--sq);
+  block-size: var(--sq);
+  pointer-events: none;
+}
+.landing-tests-motif,
+.landing-tests-motif::before,
+.landing-tests-motif::after {
+  border: 1px solid #353535;
+  border-radius: 8px;
+  opacity: 0.9;
+  background-image: linear-gradient(134.95deg, rgb(19 20 23 / 0.1) 0%, rgb(53 53 53 / 0.1) 100%);
+}
+.landing-tests-motif::before,
+.landing-tests-motif::after {
+  position: absolute;
+  inline-size: 100%;
+  block-size: 100%;
+  content: "";
+}
+/* Square #2 — the gold one. Accent stroke plus the soft inner glow the prototype shows. */
+.landing-tests-motif::before {
+  inset-block-start: 34%;
+  inset-inline-start: 29%;
+  border-color: #dfae42;
+  background-image: radial-gradient(120% 120% at 70% 80%, rgb(223 174 66 / 0.2) 0%, rgb(223 174 66 / 0) 62%);
+}
+/* Square #3 — plain, continuing the same diagonal step. */
+.landing-tests-motif::after {
+  inset-block-start: 68%;
+  inset-inline-start: 58%;
+}
+/* Figma: cluster top at y 94 of 1100 (8.5%), left at x 86 of 1440 (6%). Pulled up to 4%
+   here so the cluster's bottom clears the heading with the same ~40px gap the design has. */
+.landing-tests-motif--start { inset-block-start: 4%; inset-inline-start: 6%; }
+/* The element is only square #1; ::after hangs 68%/58% of a square past its box, so the
+   end cluster's inset has to clear that overhang or the third square falls off-screen. */
+.landing-tests-motif--end { inset-block-end: calc(5% + var(--sq) * 0.68); inset-inline-end: calc(5% + var(--sq) * 0.58); }
+
+/* Concentric arcs, top-right (Frame 200 — Ellipse 3..9, seven rings). Faint, enormous,
+   centred off-canvas past the top-right corner, so only the arcs are ever on screen. */
+.landing-tests-arcs {
+  position: absolute;
+  z-index: 0;
+  inset-block-start: -78%;
+  inset-inline-end: -42%;
+  inline-size: min(88rem, 118vw);
+  aspect-ratio: 1;
+  pointer-events: none;
+  background-image: repeating-radial-gradient(
+    circle at center,
+    rgb(255 255 255 / 0.038) 0 1px,
+    transparent 1px calc(100% / 16)
+  );
+}
+
+/* The copy sits above both motifs. */
+.landing-scene.landing-tests > .landing-tests-frame > :not(.landing-tests-motif):not(.landing-tests-arcs) {
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 48rem) {
+  .landing-tests-motif--end { display: none; }
+  .landing-tests-arcs { inset-block-start: -45%; }
+}

@@ -2,7 +2,7 @@ import "server-only";
 
 import { and, eq, notInArray, sql } from "drizzle-orm";
 
-import { PRODUCT_EDITOR_ROLES, PRODUCT_PUBLISHER_ROLES, productFormSchema, type ProductFormInput, type ProductStatus } from "@/features/admin/schemas";
+import { CREATABLE_STATUSES, PRODUCT_EDITOR_ROLES, PRODUCT_PUBLISHER_ROLES, productFormSchema, type ProductFormInput, type ProductStatus } from "@/features/admin/schemas";
 import { ORDER_PRICING } from "@/features/orders/orders";
 import type { AuthenticatedPrincipal } from "@/server/authorization";
 import { createDatabase, type Database } from "@/server/db";
@@ -175,12 +175,28 @@ async function authorizeForStatus(status: ProductStatus): Promise<AuthenticatedP
   );
 }
 
+export class UnreachableProductStatusError extends Error {
+  public readonly code = "UNREACHABLE_PRODUCT_STATUS" as const;
+
+  constructor(status: ProductStatus) {
+    super(`A new product cannot start as ${status}. Create it, then move it there.`);
+    this.name = "UnreachableProductStatusError";
+  }
+}
+
 export async function createProduct(input: unknown): Promise<string> {
   const parsed = productFormSchema.parse(input);
+  if (!(CREATABLE_STATUSES as readonly ProductStatus[]).includes(parsed.status)) {
+    throw new UnreachableProductStatusError(parsed.status);
+  }
   const actor = await authorizeForStatus(parsed.status);
   const { db } = adminDatabase();
 
   return db.transaction(async (tx) => {
+    // The products_status_transition trigger requires every product to be born
+    // in draft; draft -> published is the only legal move out of it, so an
+    // "archived" or "unpublished" creation is not expressible and is refused
+    // above rather than attempted here.
     const [product] = await tx
       .insert(products)
       .values({
@@ -188,9 +204,16 @@ export async function createProduct(input: unknown): Promise<string> {
         handle: parsed.handle,
         title: parsed.title,
         description: parsed.description,
-        status: parsed.status,
+        status: "draft",
       })
       .returning({ id: products.id });
+
+    if (parsed.status !== "draft") {
+      await tx
+        .update(products)
+        .set({ status: parsed.status, updatedAt: new Date() })
+        .where(and(eq(products.tenantId, actor.tenantId), eq(products.id, product.id)));
+    }
 
     await syncVariants(tx, actor.tenantId, product.id, parsed);
     await syncMedia(tx, actor.tenantId, product.id, parsed);

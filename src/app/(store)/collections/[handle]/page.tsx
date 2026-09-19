@@ -23,5 +23,5 @@ export default async function CollectionPage({ params, searchParams }: Collectio
   const filters = parseCatalogSearchParams(rawSearchParams);
   const collection = await getPublishedCollection(handle, filters);
   if (!collection) notFound();
-  return <CatalogView title={collection.title} products={collection.products} filters={filters} />;
+  return <CatalogView title={collection.title} products={collection.products} filters={filters} facets={collection.facets} />;
 }

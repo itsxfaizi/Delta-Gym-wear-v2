@@ -21,7 +21,7 @@ import type { CodStatus } from "@/features/orders/status";
 import type { OrderStatus } from "@/features/orders/types";
 import { listOrders, type OrderSummary } from "@/server/orders/queries";
 import { createDatabase, type Database } from "@/server/db";
-import { getOrderOps, resolveCodStatus } from "@/server/ops/order-ops";
+import { resolveCodStatus } from "@/server/ops/order-ops";
 import { mediaReferences, orderItems, orders, productVariants, products } from "@/server/db/schema";
 import { getCatalogTenantId } from "@/server/env";
 
@@ -170,7 +170,6 @@ export type AdminDashboard = {
   lowStock: LowStockVariant[];
   recentOrders: OrderSummary[];
   awaitingConfirmation: OrderSummary[];
-  missingTracking: OrderSummary[];
   productCount: number;
   customerCount: number;
 };
@@ -190,7 +189,6 @@ const EMPTY_DASHBOARD: AdminDashboard = {
   lowStock: [],
   recentOrders: [],
   awaitingConfirmation: [],
-  missingTracking: [],
   productCount: 0,
   customerCount: 0,
 };
@@ -204,14 +202,15 @@ async function toCodStatus(order: { id: string; status: OrderStatus }): Promise<
   return (await resolveCodStatus(order.id, order.status)) as CodStatus;
 }
 
-export async function getAdminDashboard(): Promise<AdminDashboard> {
+/** `windowDays` is the trailing window the dashboard reports on; twice that is fetched so it has a prior period to compare against. */
+export async function getAdminDashboard(windowDays: number = DASHBOARD_WINDOW_DAYS): Promise<AdminDashboard> {
   const scope = adminDatabase();
-  if (!scope) return EMPTY_DASHBOARD;
+  if (!scope) return { ...EMPTY_DASHBOARD, windowDays };
   const { db, tenantId } = scope;
 
-  const windowStart = new Date(Date.now() - 2 * DASHBOARD_WINDOW_DAYS * 86_400_000);
+  const windowStart = new Date(Date.now() - 2 * windowDays * 86_400_000);
 
-  const [statusRows, windowRows, itemRows, lowStock, recent, pending, shipped, [productCount], [customerCount]] =
+  const [statusRows, windowRows, itemRows, lowStock, recent, pending, [productCount], [customerCount]] =
     await Promise.all([
       db
         .select({ status: orders.status, total: count() })
@@ -261,7 +260,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
         .limit(10),
       listOrders({ limit: 8 }),
       listOrders({ status: "pending", limit: 8 }),
-      listOrders({ status: "shipped", limit: 25 }),
       db.select({ total: sql<number>`count(*)::int` }).from(products).where(eq(products.tenantId, tenantId)),
       // Everyone who has ordered, not just registered accounts — this KPI links to
       // /admin/customers, which derives its rows from orders and counts guests too.
@@ -285,12 +283,8 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     })),
   );
 
-  const trackingChecks = await Promise.all(
-    shipped.orders.map(async (order) => ({ order, ops: await getOrderOps(order.id) })),
-  );
-
   return {
-    windowDays: DASHBOARD_WINDOW_DAYS,
+    windowDays,
     statusCounts,
     windowOrders,
     // Same revenue rule as the KPI: a refused parcel is not a sale.
@@ -298,7 +292,6 @@ export async function getAdminDashboard(): Promise<AdminDashboard> {
     lowStock,
     recentOrders: recent.orders,
     awaitingConfirmation: pending.orders,
-    missingTracking: trackingChecks.filter(({ ops }) => !ops.trackingNumber).map(({ order }) => order),
     productCount: productCount?.total ?? 0,
     customerCount: customerCount?.total ?? 0,
   };

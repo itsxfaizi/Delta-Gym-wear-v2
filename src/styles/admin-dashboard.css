@@ -1,0 +1,427 @@
+/* Dashboard-only layout: the two-up rows, the revenue plot, the pipeline bar,
+   the top-product bars and the two operational queues. Shared admin classes
+   live in admin.css and are not redefined here. Every value below is read off
+   the mockup (Admin Dashboard v2), not eyeballed. */
+
+[data-route-surface="admin"] {
+  /* The mockup's pipeline ramp: one step per lifecycle stage. --admin-accent-mid
+     in admin.css is the *pale* mid, so the true mid tone is named here. */
+  --dash-ramp-1: #0f6f8c;
+  --dash-ramp-2: #3f92a8;
+  --dash-ramp-3: #b6d4dc;
+  --dash-ramp-4: #dcebef;
+}
+
+/* Rows */
+
+/* Row 1 stretches, as the mockup's revenue/pipeline pair does: the two panels
+   stand the same height. The rows below it start-align, so a short queue is a
+   small card rather than a tall blank box. */
+.dash-row {
+  display: grid;
+  gap: var(--space-6);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 28rem), 1fr));
+}
+
+.dash-row + .dash-row,
+section + .dash-row {
+  margin-block-start: var(--space-6);
+}
+
+/* Top products / recent orders is a thirds row in the mockup, not a half row:
+   three auto-fit tracks with the table spanning two of them. The span is gated
+   so a single-track (phone) grid never grows an implicit second column. */
+.dash-row--split,
+.dash-row--queues {
+  align-items: start;
+}
+
+.dash-row--split {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+/* The mockup's queue row is a touch tighter than the panels above it. */
+.dash-row--queues {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 21rem), 1fr));
+}
+
+.dash-row--queues .admin-panel {
+  gap: var(--space-4);
+}
+
+@media (min-width: 64rem) {
+  .dash-row--split > :last-child {
+    grid-column: span 2;
+  }
+}
+
+/* Panels */
+
+.dash-row .admin-panel,
+.dash-row .chart-card {
+  display: grid;
+  align-content: start;
+  gap: 1.25rem;
+}
+
+/* The panel's own grid gap carries the space under a lone heading. Where a
+   caption follows, the mockup's 0.375rem pairs them instead. */
+.dash-row .admin-panel > h2,
+.dash-row .dash-head h2 {
+  margin-block-end: 0;
+}
+
+.dash-row .chart-card-head h2 {
+  margin-block-end: 0.375rem;
+}
+
+/* Heading + caption read as one block inside the panel's wider grid gap. */
+.dash-head {
+  display: grid;
+  gap: 0.375rem;
+}
+
+/* Low stock carries the mockup's danger flag down its inner edge. */
+.dash-panel--danger {
+  box-shadow: inset 3px 0 0 var(--color-danger);
+}
+
+/* A KPI card that links stays ink; only the card background answers the hover. */
+.kpi-grid a.kpi-card {
+  color: var(--color-ink);
+}
+
+/* Revenue and orders */
+
+.dash-legend {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+}
+
+.dash-legend > span {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-ink-soft);
+  font-size: 0.625rem;
+  font-weight: var(--admin-label-weight);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dash-legend-rule {
+  inline-size: 10px;
+  block-size: 3px;
+  background: var(--admin-accent);
+}
+
+.dash-legend-square {
+  inline-size: 10px;
+  block-size: 10px;
+  background: var(--admin-accent-mid);
+}
+
+.dash-chart {
+  display: grid;
+  gap: 1.25rem;
+  min-inline-size: 0;
+}
+
+/* Stretched to the panel: the plot has no axis of its own, so distortion is
+   the point. The ticks below carry the dates. */
+.dash-chart-plot {
+  display: block;
+  inline-size: 100%;
+  block-size: 14rem;
+}
+
+.dash-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  block-size: 3rem;
+  padding-block-start: 0.25rem;
+  border-block-start: 1px solid var(--admin-rule);
+}
+
+.dash-chart-bars > span {
+  flex: 1 1 0;
+  min-inline-size: 0;
+  background: var(--admin-accent-mid);
+  transition: background-color var(--duration-control) var(--ease-out);
+}
+
+.dash-chart-bars > span:hover {
+  background: var(--admin-accent);
+}
+
+.dash-chart-ticks {
+  display: flex;
+  justify-content: space-between;
+  color: var(--admin-ink-faint);
+  font-family: var(--admin-font-mono);
+  font-size: 0.625rem;
+  letter-spacing: 0.06em;
+}
+
+/* Order pipeline */
+
+/* Status → ramp step, shared by the bar and its legend swatches. */
+.dash-pipeline-bar > span,
+.dash-swatch {
+  background: var(--admin-rule);
+}
+
+.dash-pipeline-bar > span[data-status="pending"],
+.dash-pipeline-bar > span[data-status="confirmation_required"],
+.dash-swatch[data-status="pending"],
+.dash-swatch[data-status="confirmation_required"] {
+  background: var(--dash-ramp-1);
+}
+
+.dash-pipeline-bar > span[data-status="confirmed"],
+.dash-pipeline-bar > span[data-status="packed"],
+.dash-swatch[data-status="confirmed"],
+.dash-swatch[data-status="packed"] {
+  background: var(--dash-ramp-2);
+}
+
+.dash-pipeline-bar > span[data-status="shipped"],
+.dash-swatch[data-status="shipped"] {
+  background: var(--dash-ramp-3);
+}
+
+.dash-pipeline-bar > span[data-status="delivered"],
+.dash-swatch[data-status="delivered"] {
+  background: var(--dash-ramp-4);
+}
+
+.dash-pipeline-bar > span[data-status="refused"],
+.dash-pipeline-bar > span[data-status="returned_to_sender"],
+.dash-swatch[data-status="refused"],
+.dash-swatch[data-status="returned_to_sender"] {
+  background: var(--color-danger);
+}
+
+.dash-pipeline-bar {
+  display: flex;
+  gap: 1px;
+  block-size: 2rem;
+}
+
+.dash-pipeline-bar > span {
+  flex-basis: 0;
+  min-inline-size: 2px;
+}
+
+/* Hairline-separated rows, the mockup's 1px grid rather than row borders. */
+.dash-pipeline-legend {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  background: var(--admin-rule-soft);
+}
+
+.dash-pipeline-legend > div {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0.5rem 0.125rem;
+  background: var(--color-canvas);
+  font-size: 0.8125rem;
+}
+
+.dash-pipeline-legend dt {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.dash-pipeline-legend dd {
+  margin: 0;
+  font-weight: 500;
+}
+
+.dash-swatch {
+  flex: none;
+  block-size: 10px;
+  inline-size: 10px;
+}
+
+/* Top products */
+
+.dash-bars {
+  display: grid;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dash-bar-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin: 0 0 0.375rem;
+  font-size: 0.8125rem;
+}
+
+.dash-bar-head > span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-bar-head .admin-num {
+  flex: none;
+  color: var(--color-ink-soft);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.dash-bar-track {
+  display: block;
+  block-size: 10px;
+  background: var(--color-surface);
+}
+
+.dash-bar-track::before {
+  content: "";
+  display: block;
+  block-size: 10px;
+  inline-size: var(--dash-bar, 0%);
+  background: var(--dash-ramp-1);
+}
+
+/* The mockup steps the fill down the ramp as the rank falls. */
+.dash-bars > li[data-rank="2"] .dash-bar-track::before {
+  background: var(--dash-ramp-2);
+}
+
+.dash-bars > li[data-rank="3"] .dash-bar-track::before {
+  background: var(--dash-ramp-3);
+}
+
+/* Recent orders */
+
+.dash-cell-muted {
+  color: var(--color-ink-soft);
+}
+
+/* Queues: call desk and low stock */
+
+.dash-chip {
+  margin-inline-start: auto;
+  padding: 0.125rem var(--space-2);
+  font-family: var(--admin-font-mono);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.dash-chip--solid {
+  background: var(--admin-accent);
+  color: var(--color-inverse);
+}
+
+.dash-chip--danger {
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+}
+
+.dash-queue {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--admin-rule-soft);
+}
+
+.dash-queue > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.25rem var(--space-3);
+  padding: 0.625rem 0.125rem;
+  background: var(--color-canvas);
+  font-size: 0.8125rem;
+}
+
+.dash-queue--stock > li {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+}
+
+.dash-queue > li > a {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dash-queue--stock > li > a {
+  color: var(--color-ink);
+}
+
+.dash-queue-figure {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-family: var(--admin-font-mono);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dash-queue--stock .dash-queue-figure {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-danger);
+}
+
+.dash-queue--stock > li > *:nth-child(3) {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+
+.dash-queue-meta,
+.dash-queue .admin-meta {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 48rem) {
+  /* The stock row's adjust control needs a line of its own once the columns
+     stop fitting side by side. */
+  .dash-queue--stock > li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .dash-queue--stock > li > *:nth-child(3) {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    justify-self: start;
+  }
+}
+
+/* Order numbers and product titles read as quiet links, as on the other admin
+   screens: the mockup shows no rule at rest, only on hover/focus. */
+.dash-row .admin-panel a,
+.dash-row .chart-card a {
+  text-decoration: none;
+}
+
+.dash-row .admin-panel a:hover,
+.dash-row .admin-panel a:focus-visible,
+.dash-row .chart-card a:hover,
+.dash-row .chart-card a:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 0.2rem;
+}

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
 
@@ -59,8 +59,16 @@ function toResult(error: unknown): ActionResult {
 export async function listMembers(): Promise<MemberRow[]> {
   const actor = await requireAdminPrincipal(OWNER_ONLY);
   const db = createDatabase();
+  // auth.users is Supabase's own table, outside the Drizzle schema, so the
+  // email is joined by raw SQL. A member whose account was deleted still has a
+  // membership row, hence the left join and the nullable email.
   const rows = await db
-    .select({ authUserId: memberships.authUserId, role: memberships.role, status: memberships.status })
+    .select({
+      authUserId: memberships.authUserId,
+      role: memberships.role,
+      status: memberships.status,
+      email: sql<string | null>`(select u.email from auth.users u where u.id = ${memberships.authUserId})`,
+    })
     .from(memberships)
     .where(eq(memberships.tenantId, actor.tenantId))
     .orderBy(memberships.createdAt);

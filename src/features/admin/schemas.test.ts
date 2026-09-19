@@ -1,4 +1,5 @@
 import {
+  CREATABLE_STATUSES,
   EMPTY_PRODUCT,
   EMPTY_VARIANT,
   parseProductFilters,
@@ -98,3 +99,50 @@ describe("parseProductFilters", () => {
     });
   });
 });
+
+/**
+ * The payload is validated twice — once by the form's resolver, then again by
+ * the server action that receives the resolver's output. A schema that only
+ * accepted the raw string form rejected its own output on that second pass,
+ * which silently broke every product save.
+ */
+describe("productFormSchema is idempotent", () => {
+  it("parses its own output unchanged", () => {
+    const once = productFormSchema.parse(validProduct);
+    const twice = productFormSchema.parse(once);
+
+    expect(twice).toEqual(once);
+  });
+
+  it("accepts numbers where the form sends strings", () => {
+    const parsed = productFormSchema.parse({
+      ...validProduct,
+      id: null,
+      variants: [{ ...validVariant, id: null, priceAmount: 450000, stockQuantity: 12, compareAtPriceAmount: null }],
+    });
+
+    expect(parsed.variants[0].priceAmount).toBe(450000);
+    expect(parsed.variants[0].stockQuantity).toBe(12);
+  });
+
+  it("still rejects a fractional price when it arrives as a string", () => {
+    const bad = { ...validProduct, variants: [{ ...validVariant, priceAmount: "12.50" }] };
+
+    expect(productFormSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it("still rejects a fractional price when it arrives as a number", () => {
+    const bad = { ...validProduct, variants: [{ ...validVariant, priceAmount: 12.5 }] };
+
+    expect(productFormSchema.safeParse(bad).success).toBe(false);
+  });
+});
+
+describe("CREATABLE_STATUSES", () => {
+  it("offers only the statuses a new product can legally be inserted as", () => {
+    // products_status_transition requires a draft insert, and draft -> published
+    // is its only exit; unpublished and archived are unreachable at creation.
+    expect([...CREATABLE_STATUSES]).toEqual(["draft", "published"]);
+  });
+});
+

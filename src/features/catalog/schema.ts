@@ -22,11 +22,14 @@ const MAX_CATALOG_QUERY_LENGTH = 120;
 const MAX_CATALOG_FILTER_VALUES = 16;
 const MAX_CATALOG_FILTER_VALUE_LENGTH = 64;
 
+const MAX_CATALOG_PRICE_MINOR_UNITS = 1_000_000_000;
+
 const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
   q: "",
   sizes: [],
   colors: [],
   sort: "featured",
+  maxPrice: null,
 };
 
 function getCatalogSearchParamValues(
@@ -39,6 +42,14 @@ function getCatalogSearchParamValues(
   if (typeof value === "string") return [value];
   if (Array.isArray(value)) return value.filter((item): item is string => typeof item === "string");
   return [];
+}
+
+/** `maxPrice` travels in integer minor units, matching CatalogProduct.priceAmount. */
+function normalizeCatalogMaxPrice(value: string | undefined): number | null {
+  if (value === undefined) return null;
+  const parsed = Number.parseInt(value.trim(), 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return Math.min(parsed, MAX_CATALOG_PRICE_MINOR_UNITS);
 }
 
 function normalizeCatalogFilterValues(values: readonly string[]): readonly string[] {
@@ -67,5 +78,6 @@ export function parseCatalogSearchParams(raw: CatalogSearchParams): CatalogFilte
     sizes: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "size")),
     colors: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "color")),
     sort,
+    maxPrice: normalizeCatalogMaxPrice(getCatalogSearchParamValues(raw, "maxPrice")[0]),
   };
 }

@@ -114,3 +114,61 @@ The signed-in browser prototype at [Delta root `64:5965`](https://www.figma.com/
 | Three Tests | No standalone browser/local vector asset | `tests` frame | Visible source copy is authoritative; the decorative squares are not recreated without the exact vector export. |
 | Newsletter + footer | Existing local `delta-logo.svg` and source-backed footer copy | Final `newsletter-footer` frame | Browser-verified visible final frame. Subscribe is presentation-only; no email provider is approved. |
 | Philosophy orbit/dots | No valid local vector or resting frame | Not rendered | Explicitly omitted; do not redraw or substitute. |
+
+## Figma MCP export pack — 2026-09-15
+
+**Source:** Figma file key `kfa2hxqQkoRYUc4sAPKVrs` ("Delta"), page `0:1`. Pulled via Figma MCP on **2026-09-15**. Unlike every earlier entry in this manifest, **these exports carry real, stable Figma node IDs**, encoded in each filename.
+
+### File-key correction — `kfa2hxqQkoRYUc4sAPKVrs` is now authoritative
+
+Three different file keys appear across this repo's design records:
+
+| Key | Cited in | Status |
+| --- | --- | --- |
+| `kfa2hxqQkoRYUc4sAPKVrs` | this section | **Authoritative from 2026-09-15.** |
+| `6zqT0W5qCdhBpVEGEu6G3i` | all earlier entries in this manifest | Superseded alias — same document. |
+| `JGztBol3zxJuf7O3rKXIuD` | `docs/figma-audit.md` header | Superseded alias — same document. |
+
+Node IDs match across all three (`64:5965`, `66:6339`, `72:6719`, `142:4326` resolve to the same frames in each), so they are the **same document re-keyed**, not three files. Earlier entries are not rewritten; cite `kfa2hxqQkoRYUc4sAPKVrs` going forward.
+
+### Opening/scroll storyboard — frames 01-09, in source order
+
+All nine are PNG · 900 × 588 · desktop composition (read against the 1440-wide `full-*` frames below; the implied ×1.6 scale is an inference, not a stated export setting). Intended route: `/` (home). Motion spec: `docs/opening-motion-spec.md`.
+
+| # | Node ID | Local path (`design-reference/exports/mcp-2026-09-15/`) | Composition | Intended component |
+| --- | --- | --- | --- | --- |
+| 01 | `66:6339` | `open-01-logo-66-6339.png` | Near-black field, centred DELTA wordmark with amber bolt | Opening curtain (logo hold) |
+| 02 | `66:6450` | `open-02-amber-wipe-66-6450.png` | Full-bleed flat amber `#FCB515`, no content | Opening curtain (wipe panel) |
+| 03 | `64:5965` | `open-03-hero-64-5965.png` | Hero: beach runner, transparent nav, `BUILT FOR THOSE WHO RUN WITH INTENT`, amber CTA, stats bar | `LandingHero` |
+| 04 | `66:6253` | `open-04-black-66-6253.png` | Near-black hold, no content | Invert spacing band (not a component) |
+| 05 | `66:6469` | `open-05-engineered-single-66-6469.png` | `ENGINEERED, NOT JUST STITCHED` + one centred image | `LandingEngineered` (first beat) |
+| 06 | `72:7103` | `open-06-engineered-gallery-72-7103.png` | Same section, five-up staggered rail + `SHOP MEN` / `SHOP WOMEN` | `LandingEngineered` (second beat) |
+| 07 | `127:3240` | `open-07-philosophy-127-3240.png` | Cream, tilted photo stack, orbit ring + dots, `FUNCTION FIRST ALWAYS, EXCESS REMOVED` | `LandingPhilosophy` |
+| 08 | `142:4702` | `open-08-three-tests-142-4702.png` | Invert, `EVERY PRODUCT MUST PASS THREE TESTS`, amber square motifs, concentric arcs, gold-gradient display line | `LandingTests` |
+| 09 | `142:5060` | `open-09-footer-142-5060.png` | Newsletter `NO FLUFF. JUST DROPS.` + link columns + giant ghost DELTA wordmark | `LandingNewsletter` + `SiteFooter` |
+
+### Full homepage compositions — progressive build stages
+
+| Node ID | Local path | Dimensions | Stage |
+| --- | --- | --- | --- |
+| `72:6807` | `full-a-72-6807.png` | PNG · 1440 × 2820 (exported 613 × 1200) | Hero + empty invert band + philosophy. Engineered section not yet placed. |
+| `72:6719` | `full-b-72-6719.png` | PNG · 1440 × 2820 (exported 613 × 1200) | Adds engineered section with the single centred image. |
+| `100:10098` | `full-c-100-10098.png` | PNG · 1440 × 3760 (exported 460 × 1200) | Adds the five-up gallery, gender CTAs, and the three-tests section. |
+| `142:4326` | `full-d-142-4326.png` | PNG · 1440 × 4700 (exported 368 × 1200) | **Complete composition** — hero through newsletter and footer. Use this for proportion and section order. |
+
+Frame dimensions above are the Figma frame sizes recorded by the export request; the parenthesised values are the actual delivered raster sizes on disk.
+
+### Colours sampled from this pack
+
+`#131417` invert surface · `#FCB515` amber (one unit off the existing `--color-accent` `#fdb515`; not a second token) · `#F3F3F3` cream base with `#F5EEDF` warm corner wash · `#BBBBBB` body-on-invert · `#8F8F8F` footer links · `#1F2023` ghost wordmark · gold display gradient `#FFFFFF → #DFAE42`. Token mapping in `docs/opening-motion-spec.md`; tokens added to `src/styles/globals.css`.
+
+### Still missing after this pack
+
+- **No authored motion.** `get_motion_context` returned no timelines for any node above, and MCP is quota-blocked for this window. State **order** is now source-evidenced; every timing, easing, delay, stagger, and transition direction remains an implementation approximation.
+- **No mobile or tablet frame** for any of the 13 exports. All are desktop-width.
+- **Philosophy orbit ring + dot vector** (`127:3240`) — still no SVG export. Omit; do not redraw.
+- **Three-tests overlapping-square motif and concentric arcs** (`142:4702`) — still no SVG export. Omit; do not redraw.
+- **Display typeface** — the condensed grotesque used for every display heading is not `Outfit` and is not identified. No text styles, weights, or letter-spacing were captured.
+- **Distinct product crops** — the five gallery images in `72:7103` and the stacked photos in `127:3240` are visible in the composition but were not exported as individual original-format assets; no rights/source metadata and no alt text.
+- **Hero video/original media** for `64:5965` — the export is a flattened raster, not the source footage.
+- **Unapproved content baked into the frames:** the hero stats (`4.8 Average Rating`, `98% Reorder Rate`, `5 Yr Trusted Track Record`), footer contact details, `DELTA © 2023`, and `Sizing Guide` / `Returns` / `FAQs` links. These are visible in the source but are not approved facts; see `docs/figma-audit.md`.

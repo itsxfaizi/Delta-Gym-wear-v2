@@ -10,6 +10,7 @@ export function StatusSelect({
   disabled,
   placeholder = "Select…",
   onValueChange,
+  label,
 }: {
   id?: string;
   value: string;
@@ -17,10 +18,12 @@ export function StatusSelect({
   disabled?: boolean;
   placeholder?: string;
   onValueChange: (value: string) => void;
+  /** Accessible name, for the call sites with no visible <label> beside them. */
+  label?: string;
 }) {
   return (
     <Select value={value || undefined} onValueChange={onValueChange} disabled={disabled}>
-      <SelectTrigger id={id} className="admin-select-trigger">
+      <SelectTrigger id={id} aria-label={label} className="admin-select-trigger">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>

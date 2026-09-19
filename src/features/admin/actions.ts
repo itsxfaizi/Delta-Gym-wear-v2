@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import { InvalidOrderTransitionError } from "@/features/orders/orders";
 import { OrderNotFoundError } from "@/server/orders/mutations";
 
-import { createProduct, setProductStatus, updateProduct } from "@/server/admin/mutations";
+import { UnreachableProductStatusError, createProduct, setProductStatus, updateProduct } from "@/server/admin/mutations";
 import { AuthorizationError } from "@/server/authorization";
 
 import { type ActionResult, type ProductStatus } from "./schemas";
@@ -17,7 +17,12 @@ function toResult(error: unknown): ActionResult {
   }
   // Only errors written for a human are echoed; a postgres/driver error would leak
   // constraint, column and table names into an admin toast.
-  if (error instanceof InvalidOrderTransitionError || error instanceof OrderNotFoundError || error instanceof ZodError) {
+  if (
+    error instanceof InvalidOrderTransitionError ||
+    error instanceof OrderNotFoundError ||
+    error instanceof UnreachableProductStatusError ||
+    error instanceof ZodError
+  ) {
     return { ok: false, message: error.message };
   }
   console.error("admin action failed", error);

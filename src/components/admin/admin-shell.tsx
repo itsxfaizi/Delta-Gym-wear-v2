@@ -19,9 +19,17 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 
 /**
  * The admin frame: a persistent sidebar on wide screens, the same navigation in a
- * sheet below it, and one top bar carrying the section title, order search and profile.
+ * sheet below it, and one top bar carrying order search, the call queue and profile.
  */
-export function AdminShell({ role, children }: { role: string; children: ReactNode }) {
+export function AdminShell({
+  role,
+  awaitingCall = 0,
+  children,
+}: {
+  role: string;
+  awaitingCall?: number;
+  children: ReactNode;
+}) {
   const pathname = usePathname();
   const [isMenuOpen, setMenuOpen] = useState(false);
   const title = adminSectionTitle(pathname);
@@ -30,10 +38,11 @@ export function AdminShell({ role, children }: { role: string; children: ReactNo
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <Link className="admin-brand" href="/admin">
-          Delta<span>admin</span>
+          <span className="admin-brand-mark">Delta</span>
+          <span className="admin-brand-sub">Ops console</span>
         </Link>
         <AdminNav />
-        <p className="admin-sidebar-foot">Cash on delivery console</p>
+        <p className="admin-sidebar-foot">Figures exclude cancelled, refused and returned orders.</p>
       </aside>
 
       <div className="admin-frame">
@@ -56,7 +65,7 @@ export function AdminShell({ role, children }: { role: string; children: ReactNo
             <label className="admin-visually-hidden" htmlFor="admin-search-input">
               Search orders
             </label>
-            <Search aria-hidden size={16} />
+            <Search aria-hidden size={14} />
             <input
               id="admin-search-input"
               name="q"
@@ -66,9 +75,16 @@ export function AdminShell({ role, children }: { role: string; children: ReactNo
             />
           </form>
 
+          {awaitingCall > 0 ? (
+            <Link className="admin-live-pill" href="/admin/orders?status=pending">
+              <span className="admin-live-dot" aria-hidden />
+              {awaitingCall} awaiting call
+            </Link>
+          ) : null}
+
           <DropdownMenu>
-            <DropdownMenuTrigger className="admin-icon-button" aria-label={`Signed in as ${role}`}>
-              <UserRound aria-hidden size={20} />
+            <DropdownMenuTrigger className="admin-avatar" aria-label={`Signed in as ${role}`}>
+              <UserRound aria-hidden size={18} />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="admin-profile-menu">
               <DropdownMenuLabel>{role.replace("_", " ")}</DropdownMenuLabel>

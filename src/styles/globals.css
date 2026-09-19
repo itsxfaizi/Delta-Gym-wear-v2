@@ -33,6 +33,15 @@
   --color-ink: #101114;
   --color-ink-soft: #4f5053;
   --color-inverse: #ffffff;
+  /* Landing sequence surfaces/inks — sampled from design-reference/exports/mcp-2026-09-15.
+     See docs/opening-motion-spec.md for the node ID behind each value. */
+  --color-surface-invert: #131417;
+  --color-surface-warm: #f5eedf;
+  --color-on-invert: #ffffff;
+  --color-on-invert-muted: #bbbbbb;
+  --color-on-invert-subtle: #8f8f8f;
+  --color-ink-ghost: #1f2023;
+  --gradient-display-gold: linear-gradient(90deg, #ffffff 0%, #dfae42 100%);
   --color-accent: #fdb515;
   --color-border: #d9d9d9;
   --color-danger: #8a1c1c;
@@ -52,7 +61,10 @@
   --content-width: 90rem;
   --duration-control: 160ms;
   --duration-panel: 240ms;
+  /* Top of design.md's 180-280ms entry budget. Proposed, not Figma-authored. */
+  --duration-entry-long: 280ms;
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
   --z-sticky: 10;
   --z-backdrop: 30;
   --z-modal: 40;
@@ -126,8 +138,12 @@ p { text-wrap: pretty; }
 .landing-proof dd { margin: 0; color: #e0e0e0; font-size: clamp(0.75rem, 1.2vw, 1rem); }
 .landing-engineered { padding: clamp(5rem, 11vw, 10rem) var(--page-gutter) clamp(4rem, 8vw, 7rem); background: var(--color-ink); text-align: center; }
 .landing-engineered header { max-inline-size: 64rem; margin-inline: auto; }
-.landing-engineered h2, .landing-tests h2 { font-size: clamp(2.5rem, 5vw, 5.25rem); }
-.landing-engineered header p, .landing-tests > div > p { max-inline-size: 62ch; margin: var(--space-4) auto 0; color: #d7d7d9; }
+.landing-engineered h2 { font-size: clamp(2.5rem, 5vw, 5.25rem); }
+/* Figma 244:1850 holds this heading on ONE line at 1440 (~62px = 4.3vw). 5vw wrapped it. */
+.landing-tests h2 { max-inline-size: none; font-size: clamp(1.75rem, 4.2vw, 4.25rem); }
+.landing-engineered header p { max-inline-size: 62ch; margin: var(--space-4) auto 0; color: #d7d7d9; }
+/* Left-aligned under the heading, per Figma. `auto` here centred it mid-section. */
+.landing-tests > div > p:not(.landing-tests-statement) { max-inline-size: 62ch; margin: var(--space-5, 1.25rem) 0 0; color: #d7d7d9; font-size: clamp(1rem, 1.5vw, 1.25rem); }
 .landing-athlete-strip { display: grid; grid-template-columns: 0.68fr 1fr 1.42fr 1fr 0.68fr; align-items: center; gap: clamp(0.5rem, 1.4vw, 1.5rem); max-inline-size: 82rem; margin: clamp(3rem, 6vw, 5.5rem) auto var(--space-8); }
 .landing-athlete-strip img { inline-size: 100%; block-size: clamp(14rem, 26vw, 25rem); object-fit: cover; }
 .landing-athlete-strip img:nth-child(2), .landing-athlete-strip img:nth-child(4) { block-size: clamp(16rem, 30vw, 28rem); }
@@ -171,8 +187,8 @@ p { text-wrap: pretty; }
 .catalog-search input::placeholder { color: var(--color-ink-soft); }
 .catalog-search input:focus-visible { outline-offset: -0.1875rem; }
 .catalog-search button { min-block-size: 48px; border: 0; background: transparent; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; }
-.clear-search { color: var(--color-ink-soft); }
-.search-submit { padding-inline: var(--space-4); background: var(--color-ink) !important; color: var(--color-inverse); }
+.clear-search { min-inline-size: 48px; color: var(--color-ink-soft); font-size: 1.5rem; line-height: 1; }
+.clear-search:hover { color: var(--color-ink); }
 .catalog-filter-bar { display: grid; gap: var(--space-6); }
 .catalog-filter-bar fieldset { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0 0 var(--space-6); border: 0; border-block-end: 1px solid var(--color-border); }
 .catalog-filter-bar legend { inline-size: 100%; margin: 0 0 var(--space-2); }
@@ -187,10 +203,10 @@ p { text-wrap: pretty; }
 .product-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(1.5rem, 3vw, 3rem) var(--space-4); }
 .product-card { min-inline-size: 0; }
 .motion-reveal { min-inline-size: 0; }
-.motion-reveal--editorial { transform: translateX(-1.5rem); transition: transform 650ms var(--ease-out); }
-.motion-reveal--cards { transform: translateY(1.25rem); transition: transform 560ms var(--ease-out); transition-delay: calc(min(var(--motion-index, 0), 5) * 55ms); }
-.motion-reveal--pdp-gallery { transform: scale(1.012); transition: transform 700ms var(--ease-out); }
-.motion-reveal--pdp-details { transform: translateX(1.25rem); transition: transform 650ms var(--ease-out); transition-delay: 100ms; }
+.motion-reveal--editorial { transform: translateX(-1.5rem); transition: transform var(--duration-entry-long) var(--ease-out); }
+.motion-reveal--cards { transform: translateY(1.25rem); transition: transform var(--duration-panel) var(--ease-out); transition-delay: calc(min(var(--motion-index, 0), 5) * 55ms); }
+.motion-reveal--pdp-gallery { transform: scale(1.012); transition: transform var(--duration-entry-long) var(--ease-out); }
+.motion-reveal--pdp-details { transform: translateX(1.25rem); transition: transform var(--duration-entry-long) var(--ease-out); transition-delay: 80ms; }
 .motion-reveal.is-visible { transform: none; }
 .product-image-link { position: relative; display: block; aspect-ratio: 638 / 720; overflow: hidden; background: var(--color-surface); }
 .product-image-link img { object-fit: cover; transition: transform var(--duration-panel) var(--ease-out); }
@@ -226,7 +242,13 @@ p { text-wrap: pretty; }
 .color-option .swatch { inline-size: 1.75rem; block-size: 1.75rem; }
 .color-option.selected { border: 2px solid var(--color-ink); }
 .size-option.selected { border-color: var(--color-ink); background: var(--color-ink); color: var(--color-inverse); }
-.size-option:disabled { color: #777; cursor: not-allowed; text-decoration: line-through; }
+/* aria-disabled, not :disabled — sold-out options stay focusable so AT can discover them. */
+.size-option[aria-disabled="true"] { color: #777; cursor: not-allowed; text-decoration: line-through; }
+.color-option[aria-disabled="true"] { cursor: not-allowed; opacity: 0.45; }
+
+/* WCAG 2.2.2: the looping hero clip needs a visible pause control. */
+.landing-hero-motion-toggle { position: absolute; z-index: 2; inset-block-end: var(--space-3); inset-inline-end: var(--space-3); min-inline-size: 44px; min-block-size: 44px; padding-inline: var(--space-3); border: 1px solid rgb(255 255 255 / 0.55); background: rgb(0 0 0 / 0.55); color: #fff; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; transition: background-color var(--duration-control) var(--ease-out); }
+.landing-hero-motion-toggle:hover { background: rgb(0 0 0 / 0.75); }
 .primary-cta { min-block-size: 52px; inline-size: 100%; display: inline-flex; align-items: center; justify-content: center; border: 0; background: var(--color-ink); color: var(--color-inverse); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.1em; text-decoration: none; text-transform: uppercase; }
 .primary-cta:hover { background: #292a2d; }
 .pdp-details .primary-cta { background: var(--color-accent); color: var(--color-ink); }

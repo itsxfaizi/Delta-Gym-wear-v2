@@ -65,14 +65,32 @@ export type CatalogFilters = {
   sizes: readonly string[];
   colors: readonly string[];
   sort: CatalogSort;
+  /** Inclusive upper bound in integer minor units; null means no price filter. */
+  maxPrice?: number | null;
   /** Drops products whose variants are all sold out. */
   inStockOnly?: boolean;
+};
+
+/** Inclusive price span of the published catalog, in integer minor units. */
+export type CatalogPriceBounds = { min: number; max: number };
+
+/**
+ * Filter options derived from the published catalog itself, so the rail never
+ * offers a size, colour, or price that no published product actually has.
+ */
+export type CatalogFacets = {
+  sizes: readonly string[];
+  colors: readonly string[];
+  /** null when every product shares one price: a range control would be inert. */
+  priceBounds: CatalogPriceBounds | null;
 };
 
 export type CatalogCollection = {
   handle: "all";
   title: "All Products";
   products: readonly CatalogProduct[];
+  /** Derived from the unfiltered published catalog, so options never vanish mid-filter. */
+  facets: CatalogFacets;
 };
 
 export type ProductStatusTransition = {

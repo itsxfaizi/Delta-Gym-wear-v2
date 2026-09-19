@@ -53,8 +53,8 @@ test("mobile renders the prototype frames as normal flowing sections", async ({ 
 
 test("catalog search, filters, and sort stay in the URL", async ({ page }) => {
   await page.goto("/shop");
-  await page.getByRole("searchbox", { name: "Search products" }).fill("Airflow");
-  await page.getByRole("button", { name: "Search", exact: true }).click();
+  // The field is debounced, so the URL follows typing without a submit button.
+  await page.getByRole("searchbox", { name: "Search the catalog" }).fill("Airflow");
   await expect(page).toHaveURL(/q=Airflow/);
   await page.getByRole("checkbox", { name: "M" }).check();
   await expect(page).toHaveURL(/size=m/);

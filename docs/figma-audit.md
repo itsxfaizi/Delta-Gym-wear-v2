@@ -196,3 +196,130 @@ Documented visual deviations remain source gaps, not substitutions:
 - The philosophy orbit/dot vector has been **removed**; no CSS recreation remains. The paired rear image uses an existing original Figma crop, but the exact orbit asset is still absent.
 - The Three Tests square motif is also omitted pending its exact vector export.
 - No mobile/tablet Figma prototype frames exist. Below 1024 px the verified desktop content is stacked in source order with unchanged copy, source imagery, visible cart access, and 44 px controls.
+
+## Opening/scroll motion gap — PARTIALLY unblocked — 2026-09-15
+
+**File-key correction.** This document's header cites file key `JGztBol3zxJuf7O3rKXIuD`; `design-reference/manifest.md` cites `6zqT0W5qCdhBpVEGEu6G3i`. Node IDs resolve identically across both and across the new key, so all three are the **same document re-keyed**. **`kfa2hxqQkoRYUc4sAPKVrs` is authoritative from this date.** Earlier sections are left intact as history.
+
+A Figma MCP pull on **2026-09-15** produced 13 PNG exports with **real, stable node IDs** into `design-reference/exports/mcp-2026-09-15/`. Full inventory in `design-reference/manifest.md`; the resulting implementation contract is `docs/opening-motion-spec.md`.
+
+### What is now unblocked
+
+The landing/motion gap recorded on 2026-08-30 and 2026-08-31 — where browser prototype playback exposed **no stable node IDs** for any state past the opening frame — is closed for **state identity and state order**:
+
+| State | Node ID | Previously |
+| --- | --- | --- |
+| Opening logo | `66:6339` | known |
+| Amber wipe | `66:6450` | **not previously recorded at all** — this transition state was unknown |
+| Hero | `64:5965` | prototype root only |
+| Black hold | `66:6253` | **not previously recorded** |
+| Engineered (single image) | `66:6469` | node ID unavailable |
+| Engineered (five-up gallery) | `72:7103` | node ID unavailable |
+| Philosophy (cream) | `127:3240` | node ID unavailable |
+| Three tests | `142:4702` | node ID unavailable |
+| Newsletter + footer | `142:5060` | node ID unavailable |
+
+Two states are new evidence, not just re-identified: the **amber wipe** (`66:6450`) is a distinct full-bleed transition curtain between the logo and the hero, and the **black hold** (`66:6253`) is a compositional invert band, corroborated by the empty invert region in `full-a-72-6807.png`. The earlier five-frame browser reconstruction (`hero → engineered → philosophy → tests → newsletter-footer`) is confirmed correct but incomplete: it omitted the wipe and the hold, and it split the engineered section's two beats incorrectly — `66:6469` and `72:7103` are one section at two moments, not two sections.
+
+Colour and geometry are also unblocked: the invert surface (`#131417`), warm cream wash (`#F5EEDF` over `#F3F3F3`), on-invert text greys (`#BBBBBB`, `#8F8F8F`), ghost wordmark (`#1F2023`), and the three-tests gold display gradient (`#FFFFFF → #DFAE42`) are now sampled from source rather than inferred. Tokens added to `src/styles/globals.css`; mapping table in `docs/opening-motion-spec.md`. The sampled amber `#FCB515` is one unit of red from the existing `--color-accent` `#fdb515` — within export rounding, so **no second amber token was created**.
+
+### What remains genuinely missing
+
+1. **Authored motion — still fully blocked.** `get_motion_context` returned **no timelines** for any of the nine nodes, and Figma MCP is quota-blocked for this window. Every duration, easing curve, delay, stagger, and transition direction in `docs/opening-motion-spec.md` is labelled `[APPROX]` and is an implementation proposal derived from `design.md`'s 120–200 ms / 180–280 ms budget. **No PR, comment, or changelog may describe these values as Figma-authored.** This is the same constraint recorded on 2026-08-30 — the new exports did not lift it.
+2. **Mobile and tablet frames.** All 13 exports are desktop-width. No source exists for 320 / 768 / 1024 behaviour in any state. The responsive rules in the motion spec are approved inferences.
+3. **Philosophy orbit ring and dot vector** (`127:3240`). Visible in the raster; no SVG export. Remains omitted — not redrawn, not approximated in CSS. Unchanged from 2026-08-31.
+4. **Three-tests square motif and concentric arcs** (`142:4702`). Visible in the raster; no SVG export. Remains omitted. Unchanged from 2026-08-31.
+5. **Distinct product crops.** The five gallery images in `72:7103` and the two stacked photos in `127:3240` exist only inside flattened frame rasters. No individual originals, no dimensions, no rights/source metadata, no alt text. The single Catalog crop family remains the only usable product identity.
+6. **Display typeface.** The condensed grotesque used by every display heading in this sequence is not `Outfit` and is not identified. No text styles, weights, line heights, or letter-spacing were captured; the type scale in the motion spec is measured from rasters (±2 px) and derived, not authored.
+7. **Hero source media** (`64:5965`). The export is a flattened raster; no original footage or still.
+
+### Content that is visible in source but must not be implemented
+
+These appear in the new exports and remain unapproved commercial claims under the no-invented-commerce rule. Omit; do not substitute placeholder numbers:
+
+- Hero stats bar (`64:5965`): `4.8 Average Rating`, `98% Reorder Rate`, `5 Yr Trusted Track Record` — a rating plus two performance claims.
+- Footer (`142:5060`): phone number, email address, web address, `DELTA © 2023`, and the `Sizing Guide`, `Returns`, and `FAQs` links. `Returns` implies a returns policy that is explicitly not approved.
+- Newsletter (`142:5060`): submission stays visual-only until an email integration is approved.
+
+### Correction to existing implementation
+
+Measurement against the new exports shows three values in `src/styles/globals.css` that do not match source and should be corrected by the owning build agent (not changed in this pass — outside design-systems file ownership):
+
+- `.landing-hero-copy h1` uses `line-height: 0.94`; the measured line advance in `64:5965` implies ≈ 1.2.
+- `.landing-tests h3` caps at `9rem`; the measured display line in `142:4702` implies ≈ 5.125rem.
+- `.landing-engineered h2` caps at `5.25rem`; `66:6469` implies ≈ 6rem.
+- `#d7d7d9` / `#e0e0e0` literals for on-invert body copy should become `--color-on-invert-muted` (`#bbbbbb`, measured), and `var(--color-ink)` used as a *surface* on the landing should become `--color-surface-invert` (`#131417`, measured).
+
+## Owner-specified landing interactions — NO retrievable Figma prototype evidence — 2026-09-15
+
+Two landing interactions were specified **verbally by the project owner**, who states they exist as prototype interactions in the Figma file. **There is no retrievable Figma prototype or motion evidence for either of them.** Figma MCP is quota-blocked on the Starter plan for this window (per `AGENTS.md` "Figma MCP quota fallback" — not retried), `get_motion_context` previously returned **no authored timelines** for any node in this sequence, and the static PNG exports in `design-reference/exports/mcp-2026-09-15/` show **resting states only**.
+
+They are implemented as the owner described. Every duration, easing curve, hold, and transition direction below is **[APPROX]** — an implementation proposal derived from `design.md`'s 120–200 ms control / 180–280 ms entry budget and the existing tokens in `src/styles/globals.css`. **No PR, comment, or changelog may describe any of these values as Figma-authored.** If MCP access returns, re-run `get_motion_context` on `142:4702` and `72:7103` and replace the [APPROX] values with source values.
+
+| Interaction | Node | Owner's description | Source evidence available | Implementation |
+| --- | --- | --- | --- | --- |
+| Three-tests statement cycling | `142:4702` | The gold display line animates between the three tests. | Static frame only: one statement, `MOVES WITHOUT RESTRICTION`, gold-gradient filled. No timeline, no second or third statement, no control. | `src/components/storefront/landing-tests-statement.tsx`. Cross-fade on `opacity` + `translateY(0.75rem)` at `--duration-entry-long` (280 ms) `--ease-out` **[APPROX]**, hold 5200 ms **[APPROX]**, `aria-live="polite"` on a stable region, visible pause/play control (WCAG 2.2.2). |
+| Engineered gallery carousel | `72:7103` | The five-up athlete strip behaves as a carousel. | Static frame only: the staggered five-up resting composition, centre tallest. No prototype transition, no controls, no direction, no auto-advance evidence. | `src/components/storefront/landing-athlete-carousel.tsx`. Native CSS scroll-snap plus `element.scrollBy`; real `<button>` prev/next scrolling by one item, `aria-disabled` at the ends. No JS animation, no new dependency. |
+
+### Deviations and decisions recorded
+
+- **No auto-advance on the carousel.** The owner asked for carousel *behaviour*, not auto-advance, and auto-advancing imagery incurs a WCAG 2.2.2 pause-control obligation for no user benefit. Scrolling is user-initiated only.
+- **Controls are an invented affordance.** Neither export contains a prev/next or pause control of any kind. Their treatment (`.landing-strip-control`) is built from existing semantic tokens at a 44 px minimum target and is **[APPROX]**; it is not a source component. The `cta` component in the Figma library has no prev/next or pause variant.
+- **The staggered resting composition is preserved.** It is design, not motion. The carousel's flex bases are sized so all five images sit inside the existing 82 rem rail at 1440 px, so the resting frame still matches `72:7103` and scrolling only appears at narrower viewports.
+- **`prefers-reduced-motion`:** the carousel swaps `scroll-behavior: smooth` for `auto` and keeps working; the statement cycle stops its timer entirely and renders every statement statically, so no content is lost.
+- **The strip's tabbable `role="group"` container is retained** with its accessible name. A scrollable region must be keyboard-reachable so the browser's native arrow-key scrolling applies; this is an approved accessibility deviation from a frame that shows no focus affordance at all.
+
+### CONTENT GAP — the other two tests
+
+`142:4702` evidences **one** statement, `MOVES WITHOUT RESTRICTION`, against a heading that promises three. The remaining two test names are **brand copy with no approved source and were not invented**. `TEST_STATEMENTS` in `src/components/storefront/landing-tests-statement.tsx` therefore holds exactly that one string, and the component renders it as a plain static line — no cycling, no control, no live region — while the array has fewer than two entries. Adding the two approved strings to that array is the only change required to enable the cycle. **Owner action required: supply the two missing test statements.**
+
+### Unchanged gaps
+
+The five gallery images remain the gap recorded on 2026-09-15 above: they exist only inside flattened frame rasters, with no individual originals, dimensions, rights/source metadata, or authored alt text. No new imagery and no new alt text were created for the carousel; it reuses the existing crops and their existing alt text verbatim.
+
+## Philosophy photo stack — OWNER-SPECIFIED interaction, no Figma evidence — 2026-09-15
+
+Section `127:3240`, component `src/components/storefront/philosophy-media.tsx`, styles
+`src/features/landing/philosophy-stack.css`.
+
+**Provenance.** The project owner specified verbally that the philosophy photo stack is an
+interactive prototype in the Figma file: clicking a photo brings it to the front and sends the
+previously front photo to the back, as a smooth transition of position/rotation/scale. Figma MCP
+is quota-blocked on the Starter plan for this window, `get_motion_context` returned **no authored
+timelines** for `127:3240`, and `open-07-philosophy-127-3240.png` is a static resting frame. There
+is therefore **no retrievable Figma prototype or motion evidence for this interaction**. It is
+implemented as the owner described and recorded here as owner-specified, not source-derived.
+
+No PR, comment, or changelog may describe it, or any of its values, as Figma-authored.
+
+**Values, all `[APPROX]`.** Transform transition `--duration-entry-long` (280 ms) and opacity
+`--duration-panel` (240 ms), both `--ease-out`; depth slot offsets `31.8% / -12.4%`, `+9.5deg` per
+depth step, `scale` step `0.41` with a `max(0.3, …)` floor. The depth-1 slot reproduces the
+existing resting composition (52% width, seated up and right, `+7deg`); the front card keeps its
+`-2.5deg`. Rotation and scale are part of the resting transform, so they survive
+`prefers-reduced-motion`, under which the swap still happens with no transition.
+
+**Accessibility.** Each photo is a real `<button>` with an accessible name naming the photo it
+selects, `aria-current` on the front card, a 44 px minimum target, the global `:focus-visible`
+outline, and arrow-key movement within the group (`role="group"`, named "Philosophy photo stack").
+The change is announced through an `aria-live="polite"` region that is empty on first paint.
+
+**Stack contents.** The stack takes an ordered array and currently holds **two** entries —
+`philosophy-athlete.png` and `engineered-bodybuilder.png`. Gap 5 above (no individual originals,
+dimensions, rights/source metadata, or alt text behind `127:3240`) is unchanged, so no third photo
+and no new alt text was invented. The second card reuses the alt text already authored for the
+same asset in `home-view.tsx`. A third entry is an appended array element; the depth slot is
+computed from the index.
+
+**Stray white card — root cause, and an asset request.** The front photo rendered with a white
+border. No CSS rule painted it: `public/design-reference/assets/landing/philosophy-athlete.png` is
+exported 842×1263 with a **baked-in white matte** — 46 px across the top, 47 px across the bottom,
+and ~24 px white corner arcs outside a rounded-rect mask (verified by decoding the PNG; the left
+and right edges carry no matte). The source frame has clean dark rectangles. The card box is now
+declared at the asset's content ratio `842 / 1170` with `object-fit: cover` centred, so exactly the
+46/47 px matte falls outside the box, plus a matching `border-radius` that clips the four baked
+corner arcs. This removes the export's own padding, not any of the photograph.
+
+**Request outside file ownership:** re-export `philosophy-athlete.png` from `127:3240` without its
+white matte (and, ideally, at the same crop ratio as the other stack entry). Once supplied, the
+ratio correction in `philosophy-stack.css` can be dropped.
