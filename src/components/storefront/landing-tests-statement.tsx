@@ -22,14 +22,13 @@ import "@/features/landing/landing-tests.css";
  * an auto-rotating region would announce over whatever the user is reading. Casing is
  * sentence case to match the other landing headings; CSS uppercases for display, as they do.
  *
- * NOTE FOR THE OWNER: this is the order specified for the rebuild, but the recording presents
- * them in the reverse order on screen (top to bottom: MOVES / PERFORMS / HOLDS). Flip this
- * array to match the prototype exactly.
+ * Copy is the client's 2026-09-27 text: the three product principles that replaced the
+ * earlier "three tests". Each still fits the two-line window the roll steps by.
  */
 const TEST_STATEMENTS = [
-  "Holds structure under stress",
-  "Performs after repeated",
-  "Moves without restriction",
+  "Fit with purpose",
+  "Freedom to train",
+  "Everyday commitment",
 ] as const;
 
 /** Read by landing-tests.css to size the column's travel. */

@@ -5,12 +5,12 @@ test("home follows the prototype sequence and leads to the catalog", async ({ pa
   await page.goto("/");
   await expect(page.locator("[data-prototype-frame]")).toHaveCount(5);
   await expect(page.locator("[data-home-motion]")).toHaveAttribute("data-home-motion", "scrubbed");
-  await expect(page.getByRole("heading", { name: "Built for those who run with intent" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Built for those who train with intent." })).toBeVisible();
   await expect(page.locator("#engineered-title")).toBeAttached();
   await expect(page.locator("#philosophy-title")).toBeAttached();
   await expect(page.locator("#tests-title")).toBeAttached();
   await expect(page.locator("#newsletter-title")).toBeAttached();
-  await page.getByRole("link", { name: "Explore the range" }).click();
+  await page.getByRole("link", { name: "Explore Delta" }).click();
   await expect(page).toHaveURL(/\/shop$/);
   await expect(page.getByRole("heading", { name: "All Products" })).toBeVisible();
 });
@@ -157,7 +157,7 @@ test("reduced motion removes meaningful transition duration", async ({ page }) =
   await page.goto("/");
   await expect(page.locator("[data-home-intro]")).toHaveCount(0);
   await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
-  const duration = await page.getByRole("link", { name: "Explore the range" }).evaluate((element) => getComputedStyle(element).transitionDuration);
+  const duration = await page.getByRole("link", { name: "Explore Delta" }).evaluate((element) => getComputedStyle(element).transitionDuration);
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.001);
   await expect(page.locator(".landing-hero-poster")).toBeVisible();
   await expect(page.locator(".landing-hero-video")).toHaveCount(0);

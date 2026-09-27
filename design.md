@@ -51,9 +51,31 @@ Destructive confirmation names the exact affected entity and consequence; offer 
 
 Motion clarifies hierarchy and feedback; it is never decoration.
 
-- Use 120–200 ms for control feedback and 180–280 ms for entry/exit; avoid large layout shifts and continuous ambient motion.
+- Use 120–200 ms for control feedback and 180–280 ms for entry/exit; avoid large layout shifts.
 - Animate only `opacity` and `transform` where possible. Disable or substantially reduce nonessential motion under `prefers-reduced-motion`.
 - Keep an action's response immediate, even when its visual transition continues. Never hide errors or status behind motion.
+
+### Exception: the landing route's authored choreography
+
+Amended 2026-09-21, owner-instructed. The rules above are the default for **product surfaces** —
+catalog, PDP, cart, checkout, account, admin — and are unchanged there. The landing route (`/`)
+is an authored brand sequence and is governed instead by the designer's walkthrough recording,
+`design-reference/motion/designer-walkthrough-2026-09-21.mp4`, implemented in
+`src/features/landing/landing-motion.tsx`. Specifically, on `/` and only on `/`:
+
+- **Scroll-scrubbed motion has no millisecond duration**, so the 180–280 ms entry budget does not
+  apply to it. That budget still governs every discrete enter/exit transition, including all six
+  segments of the opening curtain.
+- **Sections may pin.** Two do — engineered and philosophy. The three-tests roll deliberately
+  does NOT pin; it keeps its timed autoplay and its pause control. This supersedes the earlier
+  "nothing is pinned, never scroll-jacked" rule in `docs/opening-motion-spec.md`; see
+  `docs/motion-pass.md` (2026-09-21).
+- **Continuous ambient motion is permitted** for the philosophy orbit, which the recording shows
+  looping independently of scroll.
+
+Non-negotiable regardless: opacity/transform only, content never gated behind a motion state, and
+a `prefers-reduced-motion` path that drops pins, smooth scroll and the curtain entirely and paints
+the resting composition in ordinary document flow.
 
 ## Accessibility acceptance criteria
 

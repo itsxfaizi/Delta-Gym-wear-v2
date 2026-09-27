@@ -172,3 +172,24 @@ Frame dimensions above are the Figma frame sizes recorded by the export request;
 - **Distinct product crops** — the five gallery images in `72:7103` and the stacked photos in `127:3240` are visible in the composition but were not exported as individual original-format assets; no rights/source metadata and no alt text.
 - **Hero video/original media** for `64:5965` — the export is a flattened raster, not the source footage.
 - **Unapproved content baked into the frames:** the hero stats (`4.8 Average Rating`, `98% Reorder Rate`, `5 Yr Trusted Track Record`), footer contact details, `DELTA © 2023`, and `Sizing Guide` / `Returns` / `FAQs` links. These are visible in the source but are not approved facts; see `docs/figma-audit.md`.
+
+## Authored motion acquired — 2026-09-21
+
+The designer supplied a screen recording of the intended landing choreography. This is the
+**first authored motion artifact for this route**; every prior entry in this manifest records
+motion as missing, and every timing in the codebase before this date was an `[APPROX]` proposal.
+
+| Done | Source | Export date | Format / dimensions | Local path | Intended use | Gap |
+| --- | --- | --- | --- | --- | --- | --- |
+| [x] | Designer-supplied walkthrough of the landing scroll sequence | 2026-09-21 | MP4 · 720 × 464 · 31.4s | `design-reference/motion/designer-walkthrough-2026-09-21.mp4` | **Authoritative motion reference for `/`.** Pins, scrub ranges, the image fan, the word roll and the opening bolt wipe are all read from it. | Not a Figma export and carries no node IDs; it is a screen capture, so exact keyframe values and easing curves are an analyst's reading of a 2fps sample, not authored numbers. |
+| [x] | Frame 120 of the same recording | 2026-09-21 | PNG · 720 × 464 | `design-reference/motion/designer-walkthrough-2026-09-21-resting.png` | Static resting frame, per `AGENTS.md` step 5. | Low-resolution; use the 1440-wide `full-*` PNG exports for any geometry work. |
+
+Analysis of record: 63 frames at 2fps. Section order in the recording matches the 2026-09-15 MCP
+export order exactly, which independently corroborates both. Implementation and the two reversals
+it forced are documented in `docs/motion-pass.md` (2026-09-21).
+
+**Still missing, unchanged by this pack:** no mobile or tablet frame for any state; no vector
+export for the philosophy orbit or the three-tests square motif (both are built as owner-directed
+reconstructions from measured geometry, not redrawn brand artwork); the display typeface is still
+unidentified; and the hero stats, footer contact details and `DELTA © 2023` visible in the
+recording remain **unapproved content**, gated out of the build per `docs/figma-audit.md`.

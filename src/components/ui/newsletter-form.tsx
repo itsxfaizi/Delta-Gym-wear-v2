@@ -22,7 +22,7 @@ const IDLE_STATE: NewsletterState = { status: "idle", message: "" };
  * subscribe endpoint exists, a valid address returns an honest "not live yet"
  * status. Nothing is stored and success is never claimed.
  */
-export function NewsletterForm({ idPrefix = "newsletter" }: { idPrefix?: string }) {
+export function NewsletterForm({ idPrefix = "newsletter", submitLabel = "Subscribe" }: { idPrefix?: string; submitLabel?: string }) {
   const reactId = useId();
   const inputId = `${idPrefix}-email-${reactId}`;
   const statusId = `${idPrefix}-status-${reactId}`;
@@ -49,11 +49,12 @@ export function NewsletterForm({ idPrefix = "newsletter" }: { idPrefix?: string 
           aria-describedby={statusId}
           className="min-h-[52px] w-full border-0 bg-transparent px-6 text-primary-foreground placeholder:text-[var(--color-on-invert-subtle)] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         />
+        {/* `!` because the unlayered `button { font: inherit }` in globals.css outranks layered utilities. */}
         <button
           type="submit"
-          className="min-h-[52px] bg-accent px-6 text-xs font-bold tracking-[0.08em] text-foreground uppercase focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground"
+          className="min-h-[52px] border-0 bg-accent px-6 text-xs! font-bold! tracking-[0.08em] whitespace-nowrap text-foreground uppercase focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-foreground"
         >
-          {isPending ? "Checking…" : "Subscribe"}
+          {isPending ? "Checking…" : submitLabel}
         </button>
       </div>
       <p

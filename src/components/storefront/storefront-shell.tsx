@@ -11,6 +11,7 @@ import { isVariantPurchasable, maxPurchasableQuantity } from "@/features/catalog
 import { formatMoney } from "@/features/catalog/money";
 import type { CatalogProduct, CatalogVariant } from "@/features/catalog/types";
 
+import { RouteCurtain } from "./route-curtain";
 import { StorefrontFooter } from "./storefront-footer";
 
 export type CartLine = ResolvedCartLine;
@@ -237,6 +238,7 @@ export function StorefrontShell({
   return (
     <AccountContext.Provider value={account}>
     <CartContext.Provider value={context}>
+      <RouteCurtain />
       <header ref={headerRef} className={`site-header ${isHome ? "site-header--home" : ""}`}>
         <button ref={menuTriggerRef} className="menu-trigger" type="button" aria-expanded={isMenuOpen} aria-controls="primary-navigation" onClick={() => setIsMenuOpen((open) => !open)}>
           {isMenuOpen ? "Close" : "Menu"}

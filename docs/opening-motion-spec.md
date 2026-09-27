@@ -4,6 +4,26 @@
 
 **Authoritative source:** Figma file key `kfa2hxqQkoRYUc4sAPKVrs` ("Delta"), page `0:1`, via the MCP PNG exports in `design-reference/exports/mcp-2026-09-15/` (export date 2026-09-15). Each state below cites the real node ID encoded in its filename.
 
+> ### AMENDED 2026-09-21 — read this before the honesty statement below
+>
+> The designer supplied a walkthrough recording on 2026-09-21, now at
+> `design-reference/motion/designer-walkthrough-2026-09-21.mp4`. It is the **first authored motion
+> artifact this route has ever had**, and it supersedes this document wherever the two disagree.
+>
+> Two rules stated below are now **reversed**, owner-instructed:
+>
+> 1. *"the sequence is scroll-**triggered**, never scroll-jacked: nothing is pinned"* — **no longer
+>    true.** Two sections pin: engineered and philosophy. The three-tests section does NOT pin,
+>    by owner decision after review; it keeps the timed autoplay documented in `landing-tests.css`.
+> 2. *"Holds are **delays**, not animations. No single animated segment exceeds 280 ms"* — still
+>    true of every discrete transition, but scroll-scrubbed segments have no millisecond duration
+>    at all and are out of scope for it.
+>
+> Everything else here stands, including every accessibility and degradation guarantee. The state
+> ORDER in this document is unchanged and remains source-evidenced.
+> Implementation: `src/features/landing/landing-motion.tsx`. Rationale: `docs/motion-pass.md`
+> (2026-09-21). Amended budget: `design.md` → Motion → *Exception*.
+
 ---
 
 ## Honesty statement — read before implementing

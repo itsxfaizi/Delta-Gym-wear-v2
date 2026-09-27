@@ -39,7 +39,7 @@ export function StorefrontFooter({ compact = false }: { compact?: boolean }) {
           <Link className="footer-brand" href="/" aria-label="Delta Gym Wear home">
             <Image src="/design-reference/assets/delta-logo.svg" width={147} height={37} alt="Delta Gym Wear" unoptimized />
           </Link>
-          <p>Performance gymwear engineered for discipline. Built in Islamabad for those who train with intent.</p>
+          <p>Gymwear for men and women who train with intent. Born in Pakistan, with a focus on fit, movement, and purposeful design.</p>
           <address>
             <a href="tel:+923285386793">+92-328-5386793</a>
             <a href="mailto:info@deltagymwear.com">info@deltagymwear.com</a>
@@ -66,16 +66,12 @@ export function StorefrontFooter({ compact = false }: { compact?: boolean }) {
           <span>FAQs</span>
         </nav>
         {/*
-          Decorative type, not a vector asset. Size from the recording: the ghost
-          wordmark spans design x 64 -> 412.5 (348 CSS px) at a 1440 frame, which
-          is ~7.7vw; colour token measured off 142:5060.
+          Decorative type, not a vector asset; colour token measured off 142:5060.
+          Client request 2026-09-27: it sits on its own full-width row BELOW the
+          description and contact block instead of behind it, and the footer is
+          taller to make room. See .footer-ghost in globals.css.
         */}
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -bottom-[0.22em] start-[var(--page-gutter)] z-0 select-none text-[clamp(3.5rem,7.7vw,7rem)] leading-none font-extrabold tracking-[-0.04em] text-[var(--color-ink-ghost)]"
-        >
-          DELTA
-        </span>
+        <span aria-hidden="true" className="footer-ghost">DELTA</span>
       </footer>
     </>
   );

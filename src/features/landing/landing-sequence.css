@@ -1,28 +1,12 @@
 /* Landing opening + scroll choreography — implements docs/opening-motion-spec.md.
-   HONESTY CONTRACT: the state ORDER below is source-evidenced from the 13 MCP exports
-   (real node IDs). NO duration, delay or easing here is Figma-authored — get_motion_context
-   returned no timelines. Every timing is an [APPROX] implementation proposal sitting inside
-   design.md's 120-200ms control / 180-280ms entry budget.
+   HONESTY CONTRACT, UPDATED 2026-09-21: the state ORDER is source-evidenced from the 13 MCP
+   exports (real node IDs). `get_motion_context` still returns no authored timeline for any
+   of them. What changed is that the designer supplied a walkthrough recording on 2026-09-21,
+   analysed frame by frame, and the SHAPE of every transition below is now read off that
+   recording rather than proposed. Exact frame timings are still the analyst's reading of a
+   2fps sample, not authored keyframe values, so they remain approximations — but they are
+   approximations OF SOMETHING, which the pre-2026-09-21 values were not.
    Colour and geometry values reference measured tokens in src/styles/globals.css. */
-
-/* ---- States 1-3: opening curtain (66:6339 -> 66:6450 -> 64:5965) ----
-   Pure CSS, zero JS: it therefore cannot gate hydration, cannot trap focus, and paints
-   its resting (gone) state without a script. Fixed overlay => no layout shift.
-   Timeline [APPROX]: 0-240 wordmark in, hold to 440, 440-720 amber wipe in,
-   720-1000 amber wipe out. Total 1000ms, the spec's stated curtain ceiling. */
-.opening-curtain { position: fixed; z-index: 90; inset: 0; pointer-events: none; }
-.opening-curtain-field { position: absolute; inset: 0; display: grid; place-items: center; background: var(--color-surface-invert); animation: opening-field-out 1ms linear 740ms both; }
-.opening-curtain-mark { inline-size: min(23.33vw, 21rem); block-size: auto; transform-origin: center; animation: opening-mark-in var(--duration-panel) var(--ease-brand) both; }
-.opening-curtain-wipe { position: absolute; inset: 0; background: var(--color-accent); animation: opening-wipe 560ms 440ms both; }
-
-@keyframes opening-mark-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
-@keyframes opening-field-out { to { opacity: 0; } }
-/* One declaration, two 280ms segments, so neither segment exceeds the entry budget. */
-@keyframes opening-wipe {
-  0% { transform: translateY(100%); animation-timing-function: var(--ease-brand); }
-  50% { transform: translateY(0); animation-timing-function: var(--ease-brand); }
-  100% { transform: translateY(-100%); }
-}
 
 /* ---- States 4-9: scroll reveal ----
    Resting state is the default. The hidden state is armed only where a script can
@@ -63,24 +47,24 @@
 .landing-scene .landing-athlete-strip img:nth-child(2),
 .landing-scene .landing-athlete-strip img:nth-child(4) { flex-basis: clamp(12rem, 18vw, 16rem); }
 .landing-scene .landing-athlete-strip img:nth-child(3) { flex-basis: clamp(15rem, 25vw, 22rem); }
-.landing-athlete-controls { display: flex; justify-content: center; gap: var(--space-4); margin-block-end: var(--space-8); }
 
-/* Shared chrome for the two OWNER-SPECIFIED controls (carousel prev/next, statement pause).
-   No control exists in any export, so this is an [APPROX] treatment built from existing
-   tokens; 44px minimum target, and only colour changes on hover so nothing here animates
-   layout. */
-.landing-strip-control {
-  min-block-size: 44px; min-inline-size: 44px; padding-inline: var(--space-4);
-  border: 1px solid var(--color-on-invert-subtle); background: transparent;
-  color: var(--color-on-invert);
-  font-size: 0.75rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase;
-  transition: background-color var(--duration-control) var(--ease-out), color var(--duration-control) var(--ease-out);
-}
-.landing-strip-control:hover:not([aria-disabled="true"]) { background: var(--color-accent); color: var(--color-ink); }
-.landing-strip-control[aria-disabled="true"] { border-color: var(--color-ink-ghost); color: var(--color-on-invert-subtle); cursor: not-allowed; }
 
-/* ---- State 7: philosophy (127:3240) — cream base with the measured warm corner wash ---- */
+/* While the fan is driving transforms the rail must not also be a scroll container, or the
+   spread's start state generates its own scrollable overflow. Set from JS (`strip.dataset.fan`), so with no script the
+   native carousel below is exactly what it was. */
+.landing-scene .landing-athlete-strip[data-fan="true"] { overflow: clip; scroll-snap-type: none; }
+
+/* ---- State 7: philosophy (127:3240) — cream base with the measured warm corner wash ----
+   Transition 2 in the walkthrough (f033 -> f035): the cream panel rides UP OVER the dark
+   section rather than following it in flow — at f034 it is already covering the amber
+   SHOP MEN / SHOP WOMEN buttons. An opaque panel one stacking level above its predecessor,
+   pulled up over the tail of the pin spacer, is that overlap; no JS needed for it. */
 .landing-scene.landing-philosophy {
+  position: relative;
+  z-index: 2;
+  /* Was -18vh, which permanently buried the SHOP MEN / SHOP WOMEN buttons (they were
+     never visible). Now it only eats half the engineered section's bottom padding. */
+  margin-block-start: calc(-0.5 * clamp(4rem, 8vw, 7rem));
   background-color: var(--color-surface);
   background-image:
     radial-gradient(65% 65% at 0% 0%, var(--color-surface-warm), transparent 72%),
@@ -106,33 +90,31 @@
 .landing-scene .landing-tests-statement { margin: 0; }
 .landing-tests-cycle { display: grid; justify-items: start; gap: var(--space-6); }
 .landing-tests-list { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
-.landing-scene .landing-tests-statement--enter { animation: tests-statement-in var(--duration-entry-long) var(--ease-out) both; }
-@keyframes tests-statement-in { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
 
 /* ---- State 9: newsletter on the cream surface (142:5060) ---- */
 .landing-scene.landing-newsletter-footer .landing-newsletter { background: var(--color-surface); }
-.landing-newsletter-pending { inline-size: min(100%, 42rem); margin-block-start: var(--space-4); color: var(--color-ink-soft); font-size: 0.875rem; }
 
 /* Measured hero line advance is 69px @900 = 110px @1440 against a 66px glyph -> ~1.2,
    not the 0.94 the shared heading rule applies. */
 .landing-scene .landing-hero-copy h1 { line-height: 1.2; }
 
 @media (prefers-reduced-motion: reduce) {
-  /* States 1-3 do not render at all: the page paints directly at state 3, no flash. */
-  .opening-curtain { display: none; }
   /* States 4-9 paint at their resting state on first paint. */
   .landing-scene[data-revealed="false"] [data-reveal] { opacity: 1; transform: none; }
   /* The carousel still works — prev/next simply jump instead of gliding. */
   .landing-scene .landing-athlete-strip { scroll-behavior: auto; }
-  /* The statement cycle stops entirely in JS and renders every test statically; this only
-     covers the frame between hydration and that switch. */
-  .landing-scene .landing-tests-statement--enter { animation: none; }
+  /* No pin, no scrub, no smooth scroll: landing-motion.tsx returns before it imports GSAP
+     or ScrollSmoother, so the whole page stays in ordinary document flow at its resting composition. */
+  .landing-scene.landing-philosophy { margin-block-start: 0; }
 }
 
 /* The landing surfaces are the invert token, not --color-ink (a text token). */
 .landing-scene .site-footer { background: var(--color-surface-invert); }
 /* full-d seats the hero copy in the upper-middle band, not flush to the fold. */
 .landing-scene.landing-hero { align-content: center; }
+/* Copy centred in the frame, glass panel seated at the foot of the hero. */
+.landing-scene.landing-hero { align-content: stretch; grid-template-rows: 1fr auto; row-gap: clamp(2.5rem, 6vh, 4rem); min-block-size: 100svh; }
+.landing-scene .landing-hero-copy { align-self: center; }
 
 /* ---- Responsive ----
    DERIVED, NOT SOURCED: all 13 exports are desktop-width. There is no 320/768/1024 frame
@@ -148,8 +130,27 @@
   .landing-scene .landing-athlete-strip img:nth-child(2),
   .landing-scene .landing-athlete-strip img:nth-child(4),
   .landing-scene .landing-athlete-strip img:nth-child(3) { flex-basis: min(62vw, 18rem); block-size: clamp(16rem, 62vw, 22rem); }
+  /* The desktop entry is centre-out with sideways offsets. In a scroller the LEFTMOST card
+     is the one on screen, and it was the outermost, so it arrived last and slid sideways
+     inside the rail. Here: a plain fade-up in reading order. !important because the
+     desktop values are inline custom properties on each image. */
+  /* Swipe carousel: full-bleed rail, one card centred with neighbours peeking, a firm
+     snap per card, no visible scrollbar (the rail stays keyboard-scrollable). */
+  .landing-scene .landing-athlete-carousel { margin-inline: calc(var(--page-gutter) * -1); }
+  .landing-scene .landing-athlete-strip {
+    padding-inline: calc((100vw - min(62vw, 18rem)) / 2);
+    scroll-snap-type: inline mandatory;
+    scrollbar-width: none;
+  }
+  .landing-scene .landing-athlete-strip::-webkit-scrollbar { display: none; }
+  .landing-scene .landing-athlete-strip img { scroll-snap-align: center; }
+  .landing-scene .landing-athlete-strip img[data-reveal] { --reveal-from: translateY(16px) !important; --reveal-index: 0 !important; }
+  .landing-scene .landing-athlete-strip img[data-reveal]:nth-child(2) { --reveal-index: 1 !important; }
 }
 @media (max-width: 47.99rem) {
   /* State 9: the flush email control stacks; CTAs go full width at a 44px minimum target. */
-  .landing-scene .landing-cta-pair { flex-direction: column; align-items: stretch; }
+  /* SHOP MEN / SHOP WOMEN stay side by side, sharing the row equally (owner, 2026-09-27). */
+  .landing-scene .landing-cta-pair { flex-wrap: nowrap; gap: var(--space-3); }
+  .landing-scene .landing-cta-pair .landing-cta-mask { flex: 1 1 0; }
+  .landing-scene .landing-cta-pair .landing-cta { min-inline-size: 0; padding-inline: var(--space-3); }
 }

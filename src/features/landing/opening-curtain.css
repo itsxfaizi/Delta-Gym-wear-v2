@@ -1,0 +1,49 @@
+/* ---- States 1-3: opening curtain (66:6339 -> 66:6450 -> 64:5965) ----
+   Pure CSS, zero JS: it therefore cannot gate hydration, cannot trap focus, and paints
+   its resting (gone) state without a script. Fixed overlay => no layout shift. */
+/* Timeline, now MEASURED against the 2026-09-21 walkthrough rather than proposed:
+   0-240 wordmark in, hold to 440, 440-700 bolt swallows the frame, 690 amber field takes
+   over beneath it, 720-1000 the whole curtain lifts. Total 1000ms, the spec's ceiling.
+   Every segment is <= 280ms, so design.md's entry budget still holds for all of them. */
+/* `overflow: clip` is load-bearing, not tidiness. The bolt ends at scale(90) — roughly
+   7500px tall — so without it the glyph paints far outside the curtain's own box, and the
+   lift (one viewport) moves the amber wipe off the bolt instead of taking both away,
+   stranding a giant amber bolt over the hero. Clipping keeps the curtain's paint inside
+   the rectangle that actually leaves. */
+.opening-curtain { position: fixed; z-index: 90; inset: 0; overflow: clip; pointer-events: none; animation: opening-curtain-out var(--duration-entry-long) var(--ease-brand) 720ms both; }
+.opening-curtain-field { position: absolute; inset: 0; display: grid; place-items: center; background: var(--color-surface-invert); }
+.opening-curtain-mark-wrap { position: relative; inline-size: min(23.33vw, 21rem); aspect-ratio: 294 / 73; }
+.opening-curtain-mark { inline-size: 100%; block-size: auto; transform-origin: center; animation: opening-mark-in var(--duration-panel) var(--ease-brand) both; }
+/* Seated exactly over the wordmark's own bolt: 224.838/294 and 36.618/294 of the logo box. */
+.opening-curtain-bolt {
+  position: absolute; inset-block-start: 0;
+  inset-inline-start: 76.4755%; inline-size: 12.4551%; block-size: 100%;
+  transform-origin: center;
+  /* Accelerating, so it reads as the bolt being flung at the viewer (video f003 -> f004). */
+  animation: opening-bolt 260ms cubic-bezier(0.7, 0, 0.84, 0) 440ms both;
+}
+/* A step, not a fade: by 690ms the bolt already covers the frame, so this only swaps what is
+   underneath it for a flat field that the lift can carry away. */
+.opening-curtain-wipe { position: absolute; inset: 0; opacity: 0; background: var(--color-accent); animation: opening-wipe 1ms linear 690ms both; }
+
+@keyframes opening-mark-in { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
+/* 90x the ~42px glyph clears any viewport; the bolt's diagonal edges are what the video
+   shows sweeping off to the bottom-left as it goes. */
+@keyframes opening-bolt { from { transform: scale(1); } to { transform: scale(90); } }
+@keyframes opening-wipe { to { opacity: 1; } }
+@keyframes opening-curtain-out { to { transform: translateY(-100%); } }
+
+/* ---- Route switches (2026-09-27 client request: "loading screen on each page switch") ----
+   `hold`: a link was just clicked and the next route is still rendering. Only the black
+   field and the wordmark show — nothing lifts, because we do not yet know how long the
+   server will take. `data-from-hold`: the route has committed, so the full bolt zoom plays,
+   but the wordmark is already on screen and must not fade in a second time. */
+.opening-curtain[data-phase="hold"],
+.opening-curtain[data-phase="hold"] .opening-curtain-bolt,
+.opening-curtain[data-phase="hold"] .opening-curtain-wipe,
+.opening-curtain[data-from-hold] .opening-curtain-mark { animation: none; }
+
+/* States 1-3 do not render at all under reduced motion: the page paints directly, no flash. */
+@media (prefers-reduced-motion: reduce) {
+  .opening-curtain { display: none; }
+}

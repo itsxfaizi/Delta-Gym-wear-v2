@@ -329,3 +329,18 @@ ratio correction in `philosophy-stack.css` can be dropped.
 The owner requested removal of the visible hero-video and test-statement pause controls while
 keeping both animations running. The controls are excluded from the visual composition and appear
 only when reached by keyboard; screen-reader access and `prefers-reduced-motion` remain intact.
+
+## 2026-09-27 — client adjustment pass (landing)
+
+Source: "Document for Delta Adjustment.pdf" and the "Delta Landing Page Copy" doc, both supplied by the client on 2026-09-27. Not Figma; owner-approved.
+
+- Copy replaced in hero, sections 2–5 and the footer blurb, verbatim from the copy doc.
+- Smooth scroll reinstated as a light GSAP ScrollSmoother (`smooth: 0.6`, desktop pointer only), owner-approved. Supersedes the 2026-09-21 removal of Lenis.
+- Opening curtain now plays on every storefront route switch, holding the wordmark from click until the route commits.
+- Hero glass panel: the mockup's 4.8 / 98% / 5 Yr stats are **not** shipped (unsourced claims for a pre-launch brand); the panel carries the three brand principles instead. Owner decision.
+- CTA hover: outline + transparent centre + black text as specified on light surfaces; white outline and text on dark surfaces, where black would be invisible.
+- Section 3 accent: one amber word ("detail.") rather than the whole line, since amber on cream is ~1.7:1.
+- SHOP MEN / SHOP WOMEN were previously buried under the philosophy panel's −18vh overlap; overlap reduced so the buttons and their new reveal are visible.
+- Newsletter uses the existing honest form with a KEEP ME UPDATED label; still no provider, nothing stored.
+- Pins removed (owner review recording, 2026-09-27): the engineered fan and the philosophy hold no longer pin. Pinned sections stopped the page under the user's hand ("feels loose and hard", "feels so fake"). The engineered cards now spread gently (from 30% inward, 0.94 scale, all visible) as the rail scrolls up; philosophy keeps only a whole-stack parallax. Departs from the 2026-09-21 designer walkthrough, which pinned both.
+- Philosophy stack fix: the parallax had been applied to the first card, overwriting its depth tilt, so after a click-to-swap the back card hid exactly behind the front one. The parallax now moves the whole stack.

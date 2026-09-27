@@ -103,6 +103,16 @@
   .landing-scene .landing-tests-window[data-paused="true"] .landing-tests-roll {
     animation-play-state: paused;
   }
+  /* ---- Scrub handover (2026-09-21) ----
+     landing-motion.tsx sets data-scrub once GSAP has the roll, which returns this to the
+     scroll-scrubbed behaviour the prototype AND the designer's walkthrough both show. The
+     two mechanisms are mutually exclusive by construction: the timed animation is cancelled
+     here, so the column can never be driven by a timer and a ScrollTrigger at once.
+     WCAG 2.2.2 no longer applies once it is scrubbed — nothing moves unless the user
+     scrolls it — so the pause control goes with it rather than sitting there inert. */
+  .landing-scene .landing-tests-window[data-scrub="true"] .landing-tests-roll { animation: none; }
+  .landing-scene .landing-tests-window[data-scrub="true"] .landing-tests-statement--clone { display: none; }
+  .landing-scene .landing-tests-window[data-scrub="true"] ~ .landing-tests-pause { display: none; }
   .landing-scene .landing-tests-roll .landing-tests-statement { block-size: 2lh; }
   /* The loop clone only makes sense while the column is looping. */
   .landing-scene .landing-tests-statement--clone { display: revert; }
