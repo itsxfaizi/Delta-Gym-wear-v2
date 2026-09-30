@@ -28,7 +28,7 @@ async function sendOrderConfirmationEmail(order: Order): Promise<void> {
     const { subject, text, html } = buildOrderReceiptEmail(order);
     await getMailer().send({ to: order.contactEmail, subject, text, html });
   } catch (error) {
-    console.error(`placeCodOrder: failed to send confirmation email for ${order.orderNumber}`, error);
+    console.error(`placeOrder: failed to send confirmation email for ${order.orderNumber}`, error);
   }
 }
 
@@ -38,7 +38,7 @@ async function clearServerCartAfterOrder(): Promise<void> {
     const token = await readCartToken();
     if (token) await clearCartByToken(token);
   } catch (error) {
-    console.error("placeCodOrder: failed to clear the server cart", error);
+    console.error("placeOrder: failed to clear the server cart", error);
   }
 }
 
@@ -65,11 +65,11 @@ function variantLabel(size: string | null, color: string | null): string | null 
 }
 
 /**
- * Places a cash-on-delivery order. Variant rows are locked FOR UPDATE and the
+ * Places an order paid by cash on delivery or online through Safepay. Variant rows are locked FOR UPDATE and the
  * stock decrement is guarded by `stock_quantity >= quantity`, so two concurrent
  * checkouts for the last unit cannot both succeed.
  */
-export async function placeCodOrder(
+export async function placeOrder(
   input: unknown,
   options: { customerId?: string | null; placedAt?: Date } = {},
 ): Promise<Order> {
@@ -149,7 +149,7 @@ export async function placeCodOrder(
         contactPhone: parsed.contactPhone,
         shippingAddress: parsed.shippingAddress,
         status: "pending",
-        paymentMethod: "cod",
+        paymentMethod: parsed.paymentMethod,
         paymentStatus: "unpaid",
         subtotalAmount: totals.subtotalAmount,
         shippingAmount: totals.shippingAmount,
@@ -206,10 +206,54 @@ export async function placeCodOrder(
   const placed = await getOrderById(orderId);
   if (!placed) throw new OrderNotFoundError(orderId);
 
-  await sendOrderConfirmationEmail(placed);
+  // A Safepay order is only confirmed to the shopper once markOrderPaid runs.
+  if (placed.paymentMethod === "cod") await sendOrderConfirmationEmail(placed);
   await clearServerCartAfterOrder();
 
   return placed;
+}
+
+/**
+ * Settles an unpaid Safepay order. Only the first caller wins — the return
+ * redirect and the webhook race for every payment — so the audit event and the
+ * confirmation email happen exactly once. Returns whether this call settled it.
+ */
+export async function markOrderPaid(orderNumber: string, paymentReference: string): Promise<boolean> {
+  const { db, tenantId } = requireOrdersDatabase();
+
+  const settledId = await db.transaction(async (tx) => {
+    const [settled] = await tx
+      .update(orders)
+      .set({ paymentStatus: "paid", paymentReference, updatedAt: new Date() })
+      .where(
+        and(
+          eq(orders.tenantId, tenantId),
+          eq(orders.orderNumber, orderNumber),
+          eq(orders.paymentMethod, "safepay"),
+          eq(orders.paymentStatus, "unpaid"),
+        ),
+      )
+      .returning({ id: orders.id });
+    if (!settled) return null;
+
+    await tx.insert(auditEvents).values({
+      tenantId,
+      actorUserId: null,
+      action: "order.payment_captured",
+      targetType: "order",
+      targetId: settled.id,
+      outcome: "success",
+      before: { paymentStatus: "unpaid" },
+      after: { paymentStatus: "paid", paymentReference },
+    });
+    return settled.id;
+  });
+
+  if (!settledId) return false;
+
+  const order = await getOrderById(settledId);
+  if (order) await sendOrderConfirmationEmail(order);
+  return true;
 }
 
 const STATUS_WRITER_ROLES = ["owner", "publisher"] as const;

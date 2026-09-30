@@ -2,6 +2,10 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
+import { getCustomerByAuthUserId } from "@/features/account/queries";
+import type { Order } from "@/features/orders/types";
+import { getAuthenticatedUser } from "@/server/auth/session";
+
 /**
  * Order numbers are a readable per-day sequence, so they are NOT a capability:
  * anyone could walk DG-YYMMDD-0001.. and read every customer's address. A guest
@@ -33,4 +37,16 @@ export async function rememberPlacedOrder(orderNumber: string): Promise<void> {
 export async function hasPlacedOrder(orderNumber: string): Promise<boolean> {
   const store = await cookies();
   return readRemembered(store.get(RECEIPT_COOKIE)?.value).includes(orderNumber);
+}
+
+/** Order numbers are enumerable, so reading or paying for one needs the placed-order cookie or ownership. */
+export async function canViewOrder(order: Pick<Order, "orderNumber" | "customerId">): Promise<boolean> {
+  if (await hasPlacedOrder(order.orderNumber)) return true;
+  if (!order.customerId) return false;
+
+  const user = await getAuthenticatedUser();
+  if (!user) return false;
+
+  const customer = await getCustomerByAuthUserId(user.id);
+  return customer?.id === order.customerId;
 }

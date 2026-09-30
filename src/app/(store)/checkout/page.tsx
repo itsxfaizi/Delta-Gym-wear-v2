@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { CheckoutForm, EMPTY_CHECKOUT, type CheckoutPrefill } from "@/components/checkout/checkout-form";
 import { getCustomerByAuthUserId, listCustomerAddresses } from "@/features/account/queries";
 import { getAuthenticatedUser } from "@/server/auth/session";
+import { getSafepayConfig } from "@/server/env";
 
 import "../../../styles/checkout.css";
 
@@ -46,15 +47,29 @@ async function loadPrefill(): Promise<CheckoutPrefill> {
   }
 }
 
+function onlinePaymentEnabled(): boolean {
+  try {
+    return getSafepayConfig() !== null;
+  } catch {
+    return false;
+  }
+}
+
 export default async function CheckoutPage() {
+  const paysOnline = onlinePaymentEnabled();
+
   return (
     <main className="checkout-page">
       <header className="checkout-heading">
         <p className="section-label">Checkout</p>
-        <h1>Cash on delivery</h1>
-        <p>Confirm your details. You pay the courier when the order arrives.</p>
+        <h1>{paysOnline ? "Checkout" : "Cash on delivery"}</h1>
+        <p>
+          {paysOnline
+            ? "Confirm your details, then pay online or when the order arrives."
+            : "Confirm your details. You pay the courier when the order arrives."}
+        </p>
       </header>
-      <CheckoutForm prefill={await loadPrefill()} />
+      <CheckoutForm prefill={await loadPrefill()} onlinePaymentEnabled={paysOnline} />
     </main>
   );
 }

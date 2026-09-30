@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { ORDER_STATUSES } from "./types";
+import { ORDER_STATUSES, PAYMENT_METHODS } from "./types";
 
 /** Permissive PK shape: 03xxxxxxxxx, +923xxxxxxxxx, or 0092…, spaces/dashes allowed. */
 const phoneSchema = z
@@ -31,7 +31,7 @@ export const addressSchema = z.object({
 
 export const checkoutLineSchema = z.object({
   // Not .uuid(): the development seed catalog uses slug ids, and the real guard is
-  // the variant lookup in placeCodOrder, which throws UnknownVariantError.
+  // the variant lookup in placeOrder, which throws UnknownVariantError.
   productVariantId: z.string().min(1).max(128),
   quantity: z.number().int().min(1).max(99),
 });
@@ -42,6 +42,7 @@ export const checkoutInputSchema = z.object({
   shippingAddress: addressSchema,
   notes: z.string().trim().max(1000).nullish().transform((value) => value || null),
   lines: z.array(checkoutLineSchema).min(1).max(50),
+  paymentMethod: z.enum(PAYMENT_METHODS).default("cod"),
 });
 
 export const orderStatusTransitionSchema = z.object({

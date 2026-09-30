@@ -63,6 +63,13 @@ describe("buildOrderReceiptEmail", () => {
     expect(email.html).toContain("Delta Performance Tee");
   });
 
+  it("says a Safepay order was paid online instead of asking for cash", () => {
+    const email = buildOrderReceiptEmail(makeOrder({ paymentMethod: "safepay", paymentStatus: "paid" }));
+    expect(email.text).toContain("Paid online through Safepay");
+    expect(email.text).not.toContain("Cash on delivery");
+    expect(email.html).toContain("Paid online through Safepay");
+  });
+
   it("omits the tracking link when none is given", () => {
     const email = buildOrderReceiptEmail(makeOrder());
     expect(email.text).not.toContain("Track your order");

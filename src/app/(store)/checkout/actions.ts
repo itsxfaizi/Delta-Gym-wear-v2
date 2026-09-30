@@ -7,9 +7,10 @@ import { OutOfStockError } from "@/features/orders/inventory";
 import { checkoutInputSchema } from "@/features/orders/schemas";
 import { ensureCustomerId } from "@/server/account/customers";
 import { getAuthenticatedUser } from "@/server/auth/session";
-import { UnknownVariantError, placeCodOrder } from "@/server/orders/mutations";
-import { OrdersDatabaseUnavailableError } from "@/server/orders/queries";
-import { rememberPlacedOrder } from "@/server/orders/receipt-access";
+import { UnknownVariantError, placeOrder } from "@/server/orders/mutations";
+import { OrdersDatabaseUnavailableError, getOrderByNumber } from "@/server/orders/queries";
+import { canViewOrder, rememberPlacedOrder } from "@/server/orders/receipt-access";
+import { SafepayUnavailableError, requireSafepayConfig, startSafepayCheckout } from "@/server/payments/safepay";
 
 export type CheckoutActionResult = { ok: false; message: string };
 
@@ -52,6 +53,9 @@ function toMessage(error: unknown): string {
   if (error instanceof OrdersDatabaseUnavailableError) {
     return "Checkout is temporarily unavailable. Please try again shortly.";
   }
+  if (error instanceof SafepayUnavailableError) {
+    return "Online payment is unavailable right now. Choose cash on delivery or try again shortly.";
+  }
   if (error instanceof ZodError) {
     return "Some of the details you entered are not valid. Please check the form and try again.";
   }
@@ -59,20 +63,56 @@ function toMessage(error: unknown): string {
   return "We could not place your order. Please try again.";
 }
 
+/** Where to send the shopper after a Safepay order is placed; the receipt offers "Pay now" if this fails. */
+async function safepayCheckoutUrlOrReceipt(order: { orderNumber: string; totalAmount: number; currency: string }) {
+  try {
+    return await startSafepayCheckout(order);
+  } catch (error) {
+    console.error(`checkout: could not open Safepay for ${order.orderNumber}`, error);
+    return `/orders/${order.orderNumber}?payment=unavailable`;
+  }
+}
+
 /**
- * Re-validates the checkout payload server-side (placeCodOrder parses it with the
- * same zod schema the form uses) and redirects to the order receipt on success.
+ * Re-validates the checkout payload server-side (placeOrder parses it with the
+ * same zod schema the form uses), then redirects to the order receipt for cash
+ * on delivery or to Safepay's hosted checkout for online payment.
  */
 export async function placeOrderAction(rawInput: unknown): Promise<CheckoutActionResult | void> {
-  let orderNumber: string;
+  let destination: string;
 
   try {
-    const order = await placeCodOrder(rawInput, { customerId: await resolveCustomerId(rawInput) });
-    orderNumber = order.orderNumber;
-    await rememberPlacedOrder(orderNumber);
+    // Refuse before stock is reserved, not after, when online payment is off.
+    if ((rawInput as { paymentMethod?: unknown } | null)?.paymentMethod === "safepay") requireSafepayConfig();
+
+    const order = await placeOrder(rawInput, { customerId: await resolveCustomerId(rawInput) });
+    await rememberPlacedOrder(order.orderNumber);
+    destination =
+      order.paymentMethod === "safepay" ? await safepayCheckoutUrlOrReceipt(order) : `/orders/${order.orderNumber}`;
   } catch (error) {
     return { ok: false, message: toMessage(error) };
   }
 
-  redirect(`/orders/${orderNumber}`);
+  redirect(destination);
+}
+
+/** "Pay now" on the receipt of an unpaid Safepay order: a cancelled or abandoned payment is retried here. */
+export async function payOrderAction(orderNumber: string): Promise<CheckoutActionResult | void> {
+  let destination: string;
+
+  try {
+    const order = await getOrderByNumber(orderNumber);
+    if (!order || order.paymentMethod !== "safepay" || !(await canViewOrder(order))) {
+      return { ok: false, message: "This order could not be found." };
+    }
+    if (order.paymentStatus !== "unpaid" || order.status === "cancelled") {
+      return { ok: false, message: "This order no longer needs payment." };
+    }
+
+    destination = await startSafepayCheckout(order);
+  } catch (error) {
+    return { ok: false, message: toMessage(error) };
+  }
+
+  redirect(destination);
 }

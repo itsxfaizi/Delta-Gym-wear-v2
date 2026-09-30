@@ -9,7 +9,7 @@ export const ORDER_STATUSES = [
 
 export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
-export const PAYMENT_METHODS = ["cod"] as const;
+export const PAYMENT_METHODS = ["cod", "safepay"] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 
 export const PAYMENT_STATUSES = ["unpaid", "paid", "refunded"] as const;

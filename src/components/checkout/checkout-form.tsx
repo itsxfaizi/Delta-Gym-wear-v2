@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
 
 import { placeOrderAction } from "@/app/(store)/checkout/actions";
@@ -17,7 +17,7 @@ import { ORDER_PRICING, calculateOrderTotals } from "@/features/orders/orders";
 import { checkoutInputSchema, type CheckoutInput } from "@/features/orders/schemas";
 
 type CheckoutFormValues = z.input<typeof checkoutInputSchema>;
-export type CheckoutPrefill = Omit<CheckoutFormValues, "lines">;
+export type CheckoutPrefill = Omit<CheckoutFormValues, "lines" | "paymentMethod">;
 
 export const EMPTY_CHECKOUT: CheckoutPrefill = {
   contactEmail: "",
@@ -46,7 +46,14 @@ function storedCartIsEmpty(): boolean {
   }
 }
 
-export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
+export function CheckoutForm({
+  prefill,
+  onlinePaymentEnabled,
+}: {
+  prefill: CheckoutPrefill;
+  /** False when Safepay keys are not configured: the form stays cash on delivery only. */
+  onlinePaymentEnabled: boolean;
+}) {
   const router = useRouter();
   const { lines } = useCart();
   const account = useStorefrontAccount();
@@ -55,11 +62,13 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
     handleSubmit,
     setValue,
     setError,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CheckoutFormValues, unknown, CheckoutInput>({
     resolver: zodResolver(checkoutInputSchema),
-    defaultValues: { ...prefill, lines: [] },
+    defaultValues: { ...prefill, lines: [], paymentMethod: "cod" },
   });
+  const paysOnline = useWatch({ control, name: "paymentMethod" }) === "safepay";
 
   // The cart lives in localStorage, so the lines arrive after hydration.
   useEffect(() => {
@@ -167,6 +176,26 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
           </div>
         </section>
 
+        {onlinePaymentEnabled ? (
+          <fieldset className="checkout-section checkout-payment-methods">
+            <legend>Payment</legend>
+            <label className="checkout-payment-option">
+              <input type="radio" value="cod" {...register("paymentMethod")} />
+              <span>
+                <strong>Cash on delivery</strong>
+                Pay the courier when your order arrives.
+              </span>
+            </label>
+            <label className="checkout-payment-option">
+              <input type="radio" value="safepay" {...register("paymentMethod")} />
+              <span>
+                <strong>Pay online</strong>
+                Card or wallet through Safepay&rsquo;s secure checkout.
+              </span>
+            </label>
+          </fieldset>
+        ) : null}
+
         <section className="checkout-section" aria-labelledby="checkout-notes">
           <h2 id="checkout-notes">Order notes</h2>
           <CheckoutField
@@ -211,7 +240,9 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
           </div>
         </dl>
         <p className="checkout-payment-note">
-          Payment method: cash on delivery. Pay the courier when your order arrives.
+          {paysOnline
+            ? "Payment method: pay online. You will continue to Safepay to pay securely."
+            : "Payment method: cash on delivery. Pay the courier when your order arrives."}
         </p>
         {rootError ? (
           <p className="checkout-form-error" role="alert">
@@ -219,7 +250,7 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
           </p>
         ) : null}
         <button className="checkout-submit" type="submit" disabled={isSubmitting || lines.length === 0}>
-          {isSubmitting ? "Placing order…" : "Place order"}
+          {isSubmitting ? "Placing order…" : paysOnline ? "Continue to payment" : "Place order"}
         </button>
         <Link className="checkout-back" href="/cart">
           Back to cart

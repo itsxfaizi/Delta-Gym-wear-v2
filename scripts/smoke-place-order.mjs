@@ -1,5 +1,5 @@
 /**
- * Places one COD order via raw SQL mirroring placeCodOrder exactly (same
+ * Places one COD order via raw SQL mirroring placeOrder (COD path) exactly (same
  * transaction shape, same guarded stock decrement, same order_number format),
  * then attempts an illegal status transition (pending -> delivered) to prove
  * the DB trigger rejects it. Read/write only to v2 snake_case tables, tenant-scoped.

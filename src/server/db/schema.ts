@@ -42,7 +42,7 @@ export const orderStatus = pgEnum("order_status", [
   "cancelled",
 ]);
 
-export const paymentMethod = pgEnum("payment_method", ["cod"]);
+export const paymentMethod = pgEnum("payment_method", ["cod", "safepay"]);
 
 export const paymentStatus = pgEnum("payment_status", ["unpaid", "paid", "refunded"]);
 
@@ -319,6 +319,8 @@ export const orders = pgTable(
     status: orderStatus("status").notNull().default("pending"),
     paymentMethod: paymentMethod("payment_method").notNull().default("cod"),
     paymentStatus: paymentStatus("payment_status").notNull().default("unpaid"),
+    /** The Safepay tracker that settled this order; null for COD and unpaid orders. */
+    paymentReference: text("payment_reference"),
     subtotalAmount: integer("subtotal_amount").notNull(),
     shippingAmount: integer("shipping_amount").notNull().default(0),
     totalAmount: integer("total_amount").notNull(),

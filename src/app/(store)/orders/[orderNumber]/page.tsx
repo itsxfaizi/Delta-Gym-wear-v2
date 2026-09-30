@@ -4,14 +4,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { ClearCart } from "@/components/checkout/clear-cart";
+import { PayNowButton } from "@/components/checkout/pay-now-button";
 import { formatMoney } from "@/features/catalog/money";
 import type { Order } from "@/features/orders/types";
-import { getCustomerByAuthUserId } from "@/features/account/queries";
 import { describeStatus } from "@/features/orders/status";
 import { getAuthenticatedUser } from "@/server/auth/session";
 import { getOrderByNumber } from "@/server/orders/queries";
 import { getCourierView, getCustomerStatus } from "@/server/orders/tracking";
-import { hasPlacedOrder } from "@/server/orders/receipt-access";
+import { canViewOrder } from "@/server/orders/receipt-access";
 
 import "../../../../styles/checkout.css";
 
@@ -20,7 +20,6 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Order receipt", robots: { index: false, follow: false } };
 
 
-/** Order numbers are enumerable, so reading a receipt needs the placed-order cookie or ownership. */
 async function loadOrder(orderNumber: string): Promise<Order | null> {
   try {
     return await getOrderByNumber(orderNumber);
@@ -30,19 +29,48 @@ async function loadOrder(orderNumber: string): Promise<Order | null> {
   }
 }
 
-async function canViewOrder(order: Order): Promise<boolean> {
-  if (await hasPlacedOrder(order.orderNumber)) return true;
-  if (!order.customerId) return false;
+/** ?payment= is set by Safepay's cancel link and by checkout when Safepay could not be reached. */
+const PAYMENT_NOTICES: Record<string, string> = {
+  cancelled: "Payment was cancelled. Your order is saved — pay whenever you are ready.",
+  unavailable: "We could not open the secure payment page. Your order is saved — try again below.",
+};
 
-  const user = await getAuthenticatedUser();
-  if (!user) return false;
+function PaymentNote({ order, notice }: { order: Order; notice: string | undefined }) {
+  const total = formatMoney(order.totalAmount, order.currency);
 
-  const customer = await getCustomerByAuthUserId(user.id);
-  return customer?.id === order.customerId;
+  if (order.paymentMethod === "cod") {
+    return (
+      <p className="checkout-payment-note">
+        Cash on delivery — pay {total} to the courier when your order arrives. Nothing has been charged online.
+      </p>
+    );
+  }
+  if (order.paymentStatus === "paid") {
+    return <p className="checkout-payment-note">Paid online — {total} received through Safepay. Thank you.</p>;
+  }
+  if (order.paymentStatus === "refunded") {
+    return <p className="checkout-payment-note">Refunded — {total} was returned to your payment method.</p>;
+  }
+  if (order.status === "cancelled") {
+    return <p className="checkout-payment-note">This order was cancelled before payment. Nothing was charged.</p>;
+  }
+  return (
+    <div className="checkout-payment-note" role={notice ? "status" : undefined}>
+      <p>{PAYMENT_NOTICES[notice ?? ""] ?? "Awaiting online payment. We start packing as soon as it goes through."}</p>
+      <PayNowButton orderNumber={order.orderNumber} label={`Pay ${total} now`} />
+    </div>
+  );
 }
 
-export default async function OrderReceiptPage({ params }: { params: Promise<{ orderNumber: string }> }) {
+export default async function OrderReceiptPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ orderNumber: string }>;
+  searchParams: Promise<{ payment?: string | string[] }>;
+}) {
   const { orderNumber } = await params;
+  const { payment } = await searchParams;
   const order = await loadOrder(orderNumber);
   if (!order || !(await canViewOrder(order))) notFound();
 
@@ -69,10 +97,7 @@ export default async function OrderReceiptPage({ params }: { params: Promise<{ o
         </p>
       </header>
 
-      <p className="checkout-payment-note">
-        Cash on delivery — pay {formatMoney(order.totalAmount, order.currency)} to the courier when your order
-        arrives. Nothing has been charged online.
-      </p>
+      <PaymentNote order={order} notice={typeof payment === "string" ? payment : undefined} />
 
       <section className="checkout-section" aria-labelledby="receipt-items">
         <h2 id="receipt-items">Items</h2>

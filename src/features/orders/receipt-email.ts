@@ -50,6 +50,11 @@ export function buildOrderReceiptEmail(order: Order, options: { trackingUrl?: st
 
   const address = addressLines(order);
   const trackingLine = options.trackingUrl ? `Track your order: ${options.trackingUrl}` : null;
+  // A Safepay order is only emailed once markOrderPaid has settled it.
+  const paymentLine =
+    order.paymentMethod === "safepay"
+      ? "Paid online through Safepay."
+      : "Cash on delivery. Please have the exact amount ready for the courier.";
 
   const text = [
     `Thanks for your order, ${order.shippingAddress.fullName}!`,
@@ -64,7 +69,7 @@ export function buildOrderReceiptEmail(order: Order, options: { trackingUrl?: st
     `Shipping: ${order.shippingAmount === 0 ? "Free" : formatMoney(order.shippingAmount, currency)}`,
     `Total: ${formatMoney(order.totalAmount, currency)}`,
     "",
-    "Payment method: Cash on delivery. Please have the exact amount ready for the courier.",
+    `Payment method: ${paymentLine}`,
     "",
     "Shipping to:",
     ...address,
@@ -84,7 +89,7 @@ export function buildOrderReceiptEmail(order: Order, options: { trackingUrl?: st
         Shipping: ${order.shippingAmount === 0 ? "Free" : formatMoney(order.shippingAmount, currency)}<br/>
         <strong>Total: ${formatMoney(order.totalAmount, currency)}</strong>
       </p>
-      <p><strong>Payment method:</strong> Cash on delivery. Please have the exact amount ready for the courier.</p>
+      <p><strong>Payment method:</strong> ${escapeHtml(paymentLine)}</p>
       <p><strong>Shipping to:</strong><br/>${address.map(escapeHtml).join("<br/>")}</p>
       ${trackingLine ? `<p><a href="${escapeHtml(options.trackingUrl!)}">Track your order</a></p>` : ""}
     </div>

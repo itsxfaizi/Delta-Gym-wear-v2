@@ -21,6 +21,10 @@ const envSchema = z
     APP_URL: z.string().url(),
     LOG_LEVEL: blankAsUndefined(z.enum(["debug", "info", "warn", "error"]).default("info")),
     NEXT_PUBLIC_APP_NAME: blankAsUndefined(z.string().min(1).default("Delta Gym Wear")),
+    SAFEPAY_ENVIRONMENT: blankAsUndefined(z.enum(["sandbox", "production"]).default("sandbox")),
+    SAFEPAY_API_KEY: blankAsUndefined(z.string().min(1).optional()),
+    SAFEPAY_SECRET_KEY: blankAsUndefined(z.string().min(1).optional()),
+    SAFEPAY_WEBHOOK_SECRET: blankAsUndefined(z.string().min(1).optional()),
   })
   .superRefine((env, context) => {
     if (
@@ -86,5 +90,27 @@ export function getPublicSupabaseConfig(): {
   return {
     url: env.NEXT_PUBLIC_SUPABASE_URL,
     anonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  };
+}
+
+export type SafepayConfig = {
+  environment: "sandbox" | "production";
+  apiKey: string;
+  secretKey: string;
+  webhookSecret: string | null;
+  appUrl: string;
+};
+
+/** Null when Safepay keys are not set: checkout then offers cash on delivery only. */
+export function getSafepayConfig(): SafepayConfig | null {
+  const env = getServerEnv();
+  if (!env.SAFEPAY_API_KEY || !env.SAFEPAY_SECRET_KEY) return null;
+
+  return {
+    environment: env.SAFEPAY_ENVIRONMENT,
+    apiKey: env.SAFEPAY_API_KEY,
+    secretKey: env.SAFEPAY_SECRET_KEY,
+    webhookSecret: env.SAFEPAY_WEBHOOK_SECRET ?? null,
+    appUrl: env.APP_URL,
   };
 }
