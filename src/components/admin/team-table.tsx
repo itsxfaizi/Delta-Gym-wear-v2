@@ -5,22 +5,22 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import type { z } from "zod";
 
 import { StatusSelect } from "@/components/admin/status-select";
 import { ADMIN_ROLES } from "@/features/admin/schemas";
 import {
-  addMemberSchema,
+  inviteMemberSchema,
   isLastActiveOwner,
   type MemberRow,
-  type addMemberSchema as AddMemberSchema,
 } from "@/features/admin/team";
 import {
-  addMemberAction,
+  inviteMemberAction,
   changeMemberRoleAction,
   setMemberStatusAction,
 } from "@/features/admin/team-actions";
 
-type AddMemberInput = import("zod").infer<typeof AddMemberSchema>;
+type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 
 /** Wording tracks what the guards actually enforce, not the design mockup. */
 const ROLE_NOTES: Record<(typeof ADMIN_ROLES)[number], string> = {
@@ -44,55 +44,65 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
     reset,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<AddMemberInput>({
-    resolver: zodResolver(addMemberSchema),
-    defaultValues: { authUserId: "", role: "auditor" },
+  } = useForm<InviteMemberInput>({
+    resolver: zodResolver(inviteMemberSchema),
+    defaultValues: { email: "", role: "auditor" },
   });
 
   function run(label: string, action: () => Promise<{ ok: boolean; message?: string }>, authUserId: string) {
     setBusyId(authUserId);
     startTransition(async () => {
-      const result = await action();
-      setBusyId(null);
+      try {
+        const result = await action();
+        if (!result.ok) {
+          toast.error(result.message ?? "That did not work.");
+          return;
+        }
+        toast.success(label);
+        router.refresh();
+      } catch {
+        toast.error("The team change could not be saved. Check your connection and try again.");
+      } finally {
+        setBusyId(null);
+      }
+    });
+  }
+
+  async function onInvite(values: InviteMemberInput) {
+    try {
+      const result = await inviteMemberAction(values);
       if (!result.ok) {
         toast.error(result.message ?? "That did not work.");
         return;
       }
-      toast.success(label);
+      toast.success("Invitation sent. Access starts after they accept and choose a password.");
+      reset();
       router.refresh();
-    });
-  }
-
-  async function onAdd(values: AddMemberInput) {
-    const result = await addMemberAction(values);
-    if (!result.ok) {
-      toast.error(result.message ?? "That did not work.");
-      return;
+    } catch {
+      toast.error("The invitation could not be sent. Check your connection and try again.");
     }
-    toast.success("Member added.");
-    reset();
-    router.refresh();
   }
 
   return (
     <>
       <div className="admin-columns team-top">
-        <form className="admin-panel team-add" onSubmit={handleSubmit(onAdd)} noValidate>
-          <h2>Add a member</h2>
+        <form className="admin-panel team-add" onSubmit={handleSubmit(onInvite)} noValidate>
+          <h2>Invite a team member</h2>
           <div className="admin-field">
-            <label htmlFor="member-auth-id">Auth user id</label>
+            <label htmlFor="member-email">Email address</label>
             <input
-              id="member-auth-id"
-              className="team-id-input"
-              autoComplete="off"
-              placeholder="00000000-0000-0000-0000-000000000000"
-              aria-invalid={errors.authUserId ? "true" : "false"}
-              aria-describedby={errors.authUserId ? "member-auth-id-error" : undefined}
-              {...register("authUserId")}
+              id="member-email"
+              type="email"
+              autoComplete="email"
+              placeholder="teammate@example.com"
+              aria-invalid={errors.email ? "true" : "false"}
+              aria-describedby={errors.email ? "member-email-error" : "member-email-help"}
+              {...register("email")}
             />
-            {errors.authUserId ? (
-              <span className="admin-error" id="member-auth-id-error" role="alert">
-                {errors.authUserId.message}
+            <span className="admin-hint" id="member-email-help">They will receive a link to accept and set a password.</span>
+            {errors.email ? (
+              <span className="admin-error" id="member-email-error" role="alert">
+                {errors.email.message}
               </span>
             ) : null}
           </div>
@@ -114,7 +124,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
           </div>
           <div className="admin-actions">
             <button className="admin-button admin-button--primary team-submit" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding…" : "Add member"}
+              {isSubmitting ? "Sending…" : "Send invitation"}
             </button>
           </div>
         </form>
@@ -175,14 +185,14 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                       </td>
                       <td data-label="Status">
                         <span className="admin-status team-status" data-state={member.status}>
-                          {member.status === "active" ? "Active" : "Revoked"}
+                          {member.status === "active" ? "Active" : member.status === "invited" ? "Invited" : "Revoked"}
                         </span>
                       </td>
                       <td className="team-actions" data-label="Actions">
                         <button
                           className={`admin-button team-button${member.status === "active" ? " admin-button--danger" : ""}`}
                           type="button"
-                          disabled={busy || lastOwner}
+                          disabled={busy || lastOwner || member.status === "invited"}
                           onClick={() =>
                             run(
                               member.status === "active" ? "Access revoked." : "Access restored.",
@@ -195,7 +205,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                             )
                           }
                         >
-                          {busy ? "Working…" : member.status === "active" ? "Revoke" : "Restore"}
+                          {busy ? "Working…" : member.status === "invited" ? "Awaiting acceptance" : member.status === "active" ? "Revoke" : "Restore"}
                         </button>
                         {lastOwner ? (
                           <p className="admin-hint">The last active owner cannot be changed.</p>

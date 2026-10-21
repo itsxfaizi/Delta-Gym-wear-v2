@@ -18,12 +18,15 @@ export const PRODUCT_EDITOR_ROLES = ["owner", "catalog_editor"] as const;
 export const PRODUCT_PUBLISHER_ROLES = ["owner", "publisher"] as const;
 
 export const ADMIN_PAGE_SIZE = 20;
+export const PRODUCT_AUDIENCES = ["male", "female", "unisex"] as const;
+export const GARMENT_TYPES = ["tops", "bottoms"] as const;
 
 const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /**
- * Form inputs are strings; this schema is the single string -> minor-units
- * boundary.
+ * Form inputs are rupee strings; this schema is the single rupee -> paisa
+ * boundary. The parsed number is already in paisa, so the second server parse
+ * accepts it unchanged.
  *
  * Every field below must also accept its OWN OUTPUT. The form validates through
  * zodResolver, which hands the transformed values to onSubmit, and the server
@@ -33,18 +36,23 @@ const HANDLE_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * parse rejects a number the first parse produced, and the save fails for
  * everyone. See schemas.test.ts.
  */
+const RUPEE_PATTERN = /^\d{1,7}(?:\.\d{1,2})?$/;
+const MAX_PRICE_PAISA = 999_999_999;
+
+function rupeesToPaisa(value: string): number {
+  const [whole, fraction = ""] = value.split(".");
+  return Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
+}
+
 const requiredMinorUnits = z.union([
-  z.string().trim().regex(/^\d{1,9}$/, "Enter a whole amount in paisa.").transform(Number),
-  z.number().int("Enter a whole amount in paisa.").min(0).max(999_999_999),
+  z.string().trim().regex(RUPEE_PATTERN, "Enter rupees with up to two decimal places.").transform(rupeesToPaisa),
+  z.number().int().min(0).max(MAX_PRICE_PAISA),
 ]);
 
 const optionalMinorUnits = z.union([
-  z
-    .string()
-    .trim()
-    .regex(/^\d{0,9}$/, "Enter a whole amount in paisa.")
-    .transform((value) => (value === "" ? null : Number(value))),
-  z.number().int("Enter a whole amount in paisa.").min(0).max(999_999_999),
+  z.string().trim().refine((value) => value === "" || RUPEE_PATTERN.test(value), "Enter rupees with up to two decimal places.")
+    .transform((value) => value === "" ? null : rupeesToPaisa(value)),
+  z.number().int().min(0).max(MAX_PRICE_PAISA),
   z.null(),
 ]);
 
@@ -65,6 +73,8 @@ const optionalText = (max: number) =>
 
 /** An id is "" on a new record and null once parsed; both mean "no id yet". */
 const optionalId = z.union([z.string().transform((value) => value || null), z.null()]);
+const optionalCategory = <T extends readonly [string, ...string[]]>(values: T) =>
+  z.union([z.enum(values), z.literal("").transform(() => null), z.null()]);
 
 export function slugify(value: string): string {
   return value
@@ -93,14 +103,16 @@ export const productVariantFormSchema = z
     { message: "The compare-at price must be above the selling price.", path: ["compareAtPriceAmount"] },
   );
 
-/**
- * Media is stored as a URL until a Supabase Storage bucket exists; objectKey
- * already holds an arbitrary string, so no schema change is needed later.
- */
+/** Product media stores a public Storage URL or an existing external URL. */
 export const productMediaFormSchema = z.object({
   objectKey: z.string().trim().url("Enter a full image URL."),
   altText: optionalText(160),
 });
+
+/** Shared invariant for form publishing and the separate status action. */
+export function hasImageWithoutAltText(images: readonly { altText: string | null }[]): boolean {
+  return images.some((image) => !image.altText?.trim());
+}
 
 export const productFormSchema = z
   .object({
@@ -114,10 +126,17 @@ export const productFormSchema = z
       .regex(HANDLE_PATTERN, "Use lowercase words separated by single hyphens."),
     description: optionalText(4000),
     status: z.enum(PRODUCT_STATUSES),
+    audience: optionalCategory(PRODUCT_AUDIENCES),
+    garmentType: optionalCategory(GARMENT_TYPES),
     variants: z.array(productVariantFormSchema).min(1, "Add at least one variant."),
     media: z.array(productMediaFormSchema),
   })
   .superRefine((product, context) => {
+    if (product.status === "published" && hasImageWithoutAltText(product.media)) {
+      product.media.forEach((image, index) => {
+        if (!image.altText) context.addIssue({ code: "custom", path: ["media", index, "altText"], message: "Add alt text before publishing this image." });
+      });
+    }
     const seen = new Set<string>();
     product.variants.forEach((variant, index) => {
       const sku = variant.sku.toLowerCase();
@@ -154,6 +173,8 @@ export const EMPTY_PRODUCT: ProductFormValues = {
   handle: "",
   description: "",
   status: "draft",
+  audience: "",
+  garmentType: "",
   variants: [EMPTY_VARIANT],
   media: [],
 };

@@ -219,11 +219,6 @@
   padding-inline: 1.25rem;
 }
 
-.team-id-input {
-  font-family: var(--admin-font-mono);
-  font-size: 0.8125rem;
-}
-
 /* The mockup's member cell is IBM Plex Mono 0.75rem at normal weight. We show
    the account's email in that slot rather than the raw uuid, but the type
    treatment is the mockup's. */
@@ -299,6 +294,12 @@
   border-color: var(--color-danger);
   background: transparent;
   color: var(--color-danger);
+}
+
+.team-status[data-state="invited"] {
+  border-color: var(--admin-accent);
+  background: transparent;
+  color: var(--admin-accent);
 }
 
 .team-button {

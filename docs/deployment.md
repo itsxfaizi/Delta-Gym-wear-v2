@@ -5,6 +5,25 @@ gateway) to Vercel against the existing Supabase project. It assumes the Supabas
 project and database already exist and the `db/migrations/**` SQL has already been
 applied — this runbook does not run migrations or touch the schema.
 
+## Feedback expansion release order
+
+Apply `db/migrations/0003_feedback_expansion.sql` and then
+`db/migrations/0004_product_image_storage.sql` to the intended Supabase project
+before deploying the matching application code. The first migration adds the two
+nullable product classifications, promo codes, and order discount snapshots; it
+does not rewrite existing prices or products. The second adds persistent image
+ordering and creates the public-read `product-images` bucket, restricted to JPG,
+PNG, and WebP files up to 5 MB.
+Staff upload authorization happens in the server action that issues a short-lived
+signed upload URL. Verify the target project and the migration history before
+running SQL; neither migration has been applied by this repository's build.
+
+Existing product photos remain available by their current URLs. New uploads are
+public once the bytes reach Storage; removing a product image reference does not
+delete the object. Agree on a retention and cleanup policy for unreferenced image
+objects before production release. Test an owner/editor upload and a denied
+non-editor upload in the release environment, then verify public product display.
+
 ## 1. Environment variables to set in Vercel
 
 Set these under Project Settings → Environment Variables for the Production
@@ -17,6 +36,7 @@ each value comes from.
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase dashboard → Project Settings → API → Project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase dashboard → Project Settings → API → `anon` / publishable key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes for admin/server mutations | Supabase dashboard → Project Settings → API → `service_role` key. Server-only — mark it "sensitive" in Vercel, never add `NEXT_PUBLIC_` to it. |
+| `DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY` | Yes for staff invitations | Set to `true` only after verifying the Supabase Invite user email template and callback described below. Until then, the Team screen refuses to send invitations. Server-only. |
 | `DATABASE_URL` | Yes | Supabase dashboard → Project Settings → Database → Connection string (use the pooled/transaction-mode connection string for serverless; append `?sslmode=require` if not already present) |
 | `DELTA_TENANT_ID` | Yes | The `id` of the single row in the `tenants` table for this deployment (`select id from tenants;`) |
 | `APP_URL` | Yes | The production URL Vercel assigns/you configure, e.g. `https://delta-gym-wear.example` |
@@ -42,6 +62,16 @@ a session cookie via `supabase.auth.exchangeCodeForSession`. If the Site URL or 
 allow-list doesn't match where the app is actually deployed, Supabase either rejects the
 redirect or sends users back to a domain that isn't live, and both signup confirmation
 and password reset silently dead-end.
+
+### Staff invitation email
+
+Staff invitations require a custom Supabase **Authentication → Email Templates → Invite user** template. The default `{{ .ConfirmationURL }}` may return a session in a URL fragment, which the server callback cannot read. Use a link that sends the invite token hash to the callback, for example:
+
+```html
+<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=invite">Accept the Delta team invitation</a>
+```
+
+The application supplies `.RedirectTo` as its `APP_URL` plus `/auth/callback?next=%2Freset-password%3Fnext%3D%252Fadmin`. The callback verifies `token_hash` with `type: "invite"`, activates only the matching tenant-scoped `invited` membership, and sends the staff member to choose a password. Ensure the `/auth/callback` URL is on the Supabase redirect allow-list. In a non-production project, send one test invitation, inspect the received URL, accept it, set a password, and verify that only that invited account becomes active. Then set `DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY=true` in the intended deployment. Without this verified setting, invitation creation returns a configuration error and sends no email. Do not use an editable user metadata field to assign roles.
 
 ## 3. Run `scripts/enable-rls-and-realtime.mjs` before going public
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { ORDER_STATUSES } from "./types";
+import { promotionCodeSchema } from "@/features/promotions/schemas";
 
 /** Permissive PK shape: 03xxxxxxxxx, +923xxxxxxxxx, or 0092…, spaces/dashes allowed. */
 const phoneSchema = z
@@ -41,6 +42,7 @@ export const checkoutInputSchema = z.object({
   contactPhone: phoneSchema,
   shippingAddress: addressSchema,
   notes: z.string().trim().max(1000).nullish().transform((value) => value || null),
+  promoCode: promotionCodeSchema.nullish().transform((value) => value || null),
   lines: z.array(checkoutLineSchema).min(1).max(50),
 });
 

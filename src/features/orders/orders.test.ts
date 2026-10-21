@@ -15,6 +15,7 @@ describe("calculateOrderTotals", () => {
   it("charges flat shipping below the free threshold", () => {
     expect(calculateOrderTotals([line(120_000, 2), line(60_000, 1)])).toEqual({
       subtotalAmount: 300_000,
+      discountAmount: 0,
       shippingAmount: ORDER_PRICING.flatShippingAmount,
       totalAmount: 300_000 + ORDER_PRICING.flatShippingAmount,
     });
@@ -24,16 +25,24 @@ describe("calculateOrderTotals", () => {
     const totals = calculateOrderTotals([line(ORDER_PRICING.freeShippingThresholdAmount, 1)]);
     expect(totals).toEqual({
       subtotalAmount: ORDER_PRICING.freeShippingThresholdAmount,
+      discountAmount: 0,
       shippingAmount: 0,
       totalAmount: ORDER_PRICING.freeShippingThresholdAmount,
     });
   });
 
   it("returns zeroes for an empty cart and honours a custom rule", () => {
-    expect(calculateOrderTotals([])).toEqual({ subtotalAmount: 0, shippingAmount: 0, totalAmount: 0 });
+    expect(calculateOrderTotals([])).toEqual({ subtotalAmount: 0, discountAmount: 0, shippingAmount: 0, totalAmount: 0 });
     expect(
       calculateOrderTotals([line(1_000, 1)], { flatShippingAmount: 500, freeShippingThresholdAmount: 2_000 }),
-    ).toEqual({ subtotalAmount: 1_000, shippingAmount: 500, totalAmount: 1_500 });
+    ).toEqual({ subtotalAmount: 1_000, discountAmount: 0, shippingAmount: 500, totalAmount: 1_500 });
+  });
+
+  it("subtracts the discount after the shipping threshold is determined", () => {
+    expect(calculateOrderTotals([line(600_000, 1)], ORDER_PRICING, 100_000)).toEqual({
+      subtotalAmount: 600_000, discountAmount: 100_000, shippingAmount: 0, totalAmount: 500_000,
+    });
+    expect(() => calculateOrderTotals([line(100, 1)], ORDER_PRICING, 101)).toThrow(RangeError);
   });
 });
 

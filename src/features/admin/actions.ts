@@ -6,7 +6,7 @@ import { ZodError } from "zod";
 import { InvalidOrderTransitionError } from "@/features/orders/orders";
 import { OrderNotFoundError } from "@/server/orders/mutations";
 
-import { UnreachableProductStatusError, createProduct, setProductStatus, updateProduct } from "@/server/admin/mutations";
+import { AdminDatabaseUnavailableError, InvalidProductTransitionError, MissingProductImageAltTextError, ProductNotFoundError, UnreachableProductStatusError, createProduct, setProductStatus, updateProduct } from "@/server/admin/mutations";
 import { AuthorizationError } from "@/server/authorization";
 
 import { type ActionResult, type ProductStatus } from "./schemas";
@@ -15,13 +15,33 @@ function toResult(error: unknown): ActionResult {
   if (error instanceof AuthorizationError) {
     return { ok: false, message: "You do not have permission to do that." };
   }
+  if (error instanceof AdminDatabaseUnavailableError) {
+    return { ok: false, message: "Product saving is not configured. Ask the site owner to connect the database." };
+  }
+  if (error instanceof ProductNotFoundError) {
+    return { ok: false, message: "This product no longer exists. Return to Products and refresh the list." };
+  }
+  if (error instanceof ZodError) {
+    return { ok: false, message: error.issues[0]?.message ?? "Check the product fields and try again." };
+  }
+  const databaseError = error && typeof error === "object" ? error as { code?: string; constraint_name?: string } : null;
+  if (databaseError?.code === "23505") {
+    const name = databaseError.constraint_name ?? "";
+    if (name.includes("handle")) return { ok: false, message: "That product handle is already in use. Choose another." };
+    if (name.includes("sku")) return { ok: false, message: "A variant SKU is already in use. Choose another." };
+  }
+  if (databaseError?.code === "42703" || databaseError?.code === "42P01") {
+    console.error("admin database schema is behind the application", error);
+    return { ok: false, message: "The product database needs an update. Ask the site owner to apply the latest migration." };
+  }
   // Only errors written for a human are echoed; a postgres/driver error would leak
   // constraint, column and table names into an admin toast.
   if (
     error instanceof InvalidOrderTransitionError ||
     error instanceof OrderNotFoundError ||
     error instanceof UnreachableProductStatusError ||
-    error instanceof ZodError
+    error instanceof InvalidProductTransitionError ||
+    error instanceof MissingProductImageAltTextError
   ) {
     return { ok: false, message: error.message };
   }

@@ -4,12 +4,15 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { Controller, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { useState } from "react";
 
 import { saveProduct } from "@/features/admin/actions";
 import {
   EMPTY_PRODUCT,
   EMPTY_VARIANT,
   CREATABLE_STATUSES,
+  GARMENT_TYPES,
+  PRODUCT_AUDIENCES,
   PRODUCT_STATUSES,
   productFormSchema,
   slugify,
@@ -23,6 +26,8 @@ import { VariantFields } from "./variant-fields";
 
 export function ProductForm({ product }: { product?: ProductFormValues }) {
   const router = useRouter();
+  const [saveError, setSaveError] = useState("");
+  const [imageUploading, setImageUploading] = useState(false);
   const form = useForm<ProductFormValues, unknown, ProductFormInput>({
     resolver: zodResolver(productFormSchema),
     defaultValues: product ?? EMPTY_PRODUCT,
@@ -38,9 +43,17 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
   const variants = useFieldArray({ control, name: "variants" });
 
   async function onSubmit(values: ProductFormInput) {
-    const result = await saveProduct(values);
+    setSaveError("");
+    let result: Awaited<ReturnType<typeof saveProduct>>;
+    try {
+      result = await saveProduct(values);
+    } catch {
+      setSaveError("The save request could not reach the server. Check your connection and try again.");
+      return;
+    }
 
     if (!result.ok) {
+      setSaveError(result.message);
       toast.error(result.message);
       return;
     }
@@ -51,7 +64,7 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
   }
 
   return (
-    <form className="admin-form" onSubmit={handleSubmit(onSubmit)} noValidate>
+    <form className="admin-form" onSubmit={handleSubmit(onSubmit, () => setSaveError("Check the highlighted fields and try again."))} noValidate>
       <input type="hidden" {...register("id")} />
 
       <section className="admin-panel">
@@ -101,6 +114,20 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
               )}
             />
           </div>
+          <div className="admin-field">
+            <label htmlFor="product-audience">Audience</label>
+            <select id="product-audience" {...register("audience")}>
+              <option value="">Unassigned</option>
+              {PRODUCT_AUDIENCES.map((audience) => <option key={audience} value={audience}>{audience[0].toUpperCase() + audience.slice(1)}</option>)}
+            </select>
+          </div>
+          <div className="admin-field">
+            <label htmlFor="product-garment-type">Garment type</label>
+            <select id="product-garment-type" {...register("garmentType")}>
+              <option value="">Unassigned</option>
+              {GARMENT_TYPES.map((garmentType) => <option key={garmentType} value={garmentType}>{garmentType[0].toUpperCase() + garmentType.slice(1)}</option>)}
+            </select>
+          </div>
         </div>
 
         <div className="admin-field admin-field--wide">
@@ -134,10 +161,11 @@ export function ProductForm({ product }: { product?: ProductFormValues }) {
         </div>
       </section>
 
-      <MediaFields form={form} />
+      <MediaFields form={form} onUploadingChange={setImageUploading} />
 
       <div className="admin-actions">
-        <button className="admin-button admin-button--primary" type="submit" disabled={isSubmitting}>
+        {saveError ? <p className="admin-error" role="alert">{saveError}</p> : null}
+        <button className="admin-button admin-button--primary" type="submit" disabled={isSubmitting || imageUploading}>
           {isSubmitting ? "Saving…" : "Save product"}
         </button>
       </div>

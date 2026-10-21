@@ -216,6 +216,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 {money(order.subtotalAmount)}
               </td>
             </tr>
+            {order.discountAmount > 0 ? <tr>
+              <th colSpan={4} scope="row">Promo code {order.promoCode ? `(${order.promoCode})` : ""}</th>
+              <td className="admin-num" data-label="Discount">−{money(order.discountAmount)}</td>
+            </tr> : null}
             <tr>
               <th colSpan={4} scope="row">
                 Shipping

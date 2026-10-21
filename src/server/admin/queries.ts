@@ -104,7 +104,7 @@ export async function listAdminProducts(
 }
 
 const toFormText = (value: string | null) => value ?? "";
-const toFormNumber = (value: number | null) => (value === null ? "" : String(value));
+const toFormRupees = (value: number | null) => value === null ? "" : (value / 100).toFixed(2).replace(/\.00$/, "");
 
 /** Loads a product already shaped as the form's default values. */
 export async function getAdminProductForm(productId: string): Promise<ProductFormValues | null> {
@@ -129,7 +129,7 @@ export async function getAdminProductForm(productId: string): Promise<ProductFor
       .select()
       .from(mediaReferences)
       .where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.productId, product.id)))
-      .orderBy(asc(mediaReferences.createdAt)),
+      .orderBy(asc(mediaReferences.sortOrder), asc(mediaReferences.createdAt)),
   ]);
 
   return {
@@ -138,13 +138,15 @@ export async function getAdminProductForm(productId: string): Promise<ProductFor
     handle: product.handle,
     description: toFormText(product.description),
     status: product.status,
+    audience: product.audience ?? "",
+    garmentType: product.garmentType ?? "",
     variants: variants.map((variant) => ({
       id: variant.id,
       sku: variant.sku,
       size: toFormText(variant.size),
       color: toFormText(variant.color),
-      priceAmount: String(variant.priceAmount),
-      compareAtPriceAmount: toFormNumber(variant.compareAtPriceAmount),
+      priceAmount: toFormRupees(variant.priceAmount),
+      compareAtPriceAmount: toFormRupees(variant.compareAtPriceAmount),
       stockQuantity: String(variant.stockQuantity),
       stockPolicy: variant.stockPolicy,
       isAvailable: variant.isAvailable,

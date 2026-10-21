@@ -72,6 +72,8 @@ export type Order = {
   paymentMethod: PaymentMethod;
   paymentStatus: PaymentStatus;
   subtotalAmount: number;
+  discountAmount: number;
+  promoCode: string | null;
   shippingAmount: number;
   totalAmount: number;
   currency: string;

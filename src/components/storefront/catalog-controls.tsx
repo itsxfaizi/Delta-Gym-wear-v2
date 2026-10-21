@@ -61,7 +61,7 @@ export function CatalogControls({
     if (searchTimer.current) clearTimeout(searchTimer.current);
   }, []);
 
-  const toggleValue = (key: "size" | "color", value: string, checked: boolean) => {
+  const toggleValue = (key: "size" | "color" | "audience" | "garmentType", value: string, checked: boolean) => {
     navigate((params) => {
       const current = new Set(params.getAll(key).map((item) => item.toLowerCase()));
       if (checked) current.add(value.toLowerCase());
@@ -80,7 +80,7 @@ export function CatalogControls({
   };
 
   const hasActiveFilters = Boolean(
-    filters.q || filters.sizes.length || filters.colors.length || filters.maxPrice || filters.sort !== "featured",
+    filters.q || filters.sizes.length || filters.colors.length || filters.audiences.length || filters.garmentTypes.length || filters.maxPrice || filters.sort !== "featured",
   );
 
   return (
@@ -126,6 +126,32 @@ export function CatalogControls({
         </div>
       </form>
       <div className="catalog-filter-bar">
+        {facets.audiences.length ? (
+          <fieldset>
+            <legend>Audience</legend>
+            {facets.audiences.map((audience) => (
+              <label key={audience}>
+                <input type="checkbox" name="audience" value={audience}
+                  checked={filters.audiences.includes(audience)}
+                  onChange={(event) => toggleValue("audience", audience, event.currentTarget.checked)} />{" "}
+                <span>{audience[0].toUpperCase() + audience.slice(1)}</span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
+        {facets.garmentTypes.length ? (
+          <fieldset>
+            <legend>Garment type</legend>
+            {facets.garmentTypes.map((garmentType) => (
+              <label key={garmentType}>
+                <input type="checkbox" name="garmentType" value={garmentType}
+                  checked={filters.garmentTypes.includes(garmentType)}
+                  onChange={(event) => toggleValue("garmentType", garmentType, event.currentTarget.checked)} />{" "}
+                <span>{garmentType[0].toUpperCase() + garmentType.slice(1)}</span>
+              </label>
+            ))}
+          </fieldset>
+        ) : null}
         {facets.sizes.length ? (
           <fieldset>
             <legend>Size</legend>

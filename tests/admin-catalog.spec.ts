@@ -38,19 +38,21 @@ test("an owner creates a product with several images and variants, and a shopper
   await page.getByLabel("Title").fill(TITLE);
   await page.getByLabel("Handle").fill(HANDLE);
   await page.getByLabel("Description").fill(DESCRIPTION);
+  await page.getByLabel("Audience").selectOption("unisex");
+  await page.getByLabel("Garment type").selectOption("tops");
 
   // First variant is already on the form; fill it, then add a second.
   await page.getByLabel("SKU").first().fill(`${HANDLE}-black`.toUpperCase());
   await page.getByLabel("Size").first().fill("One size");
   await page.getByLabel("Colour").first().fill("Black");
-  await page.getByLabel("Price (paisa)").first().fill("1260000");
+  await page.getByLabel("Price (PKR)").first().fill("12600");
   await page.getByLabel("Stock", { exact: true }).first().fill("18");
 
   await page.getByRole("button", { name: "Add variant" }).click();
   await page.getByLabel("SKU").nth(1).fill(`${HANDLE}-sand`.toUpperCase());
   await page.getByLabel("Size").nth(1).fill("One size");
   await page.getByLabel("Colour").nth(1).fill("Sand");
-  await page.getByLabel("Price (paisa)").nth(1).fill("1260000");
+  await page.getByLabel("Price (PKR)").nth(1).fill("12600");
   await page.getByLabel("Stock", { exact: true }).nth(1).fill("6");
 
   // Three images, added one at a time — the form starts with none.
@@ -59,6 +61,9 @@ test("an owner creates a product with several images and variants, and a shopper
     await page.getByLabel("Image URL").nth(index).fill(image.url);
     await page.getByLabel("Alt text").nth(index).fill(image.alt);
   }
+  await page.getByRole("button", { name: "Move image 3 up" }).click();
+  await page.getByRole("button", { name: "Move image 2 up" }).click();
+  const imageOrder = [IMAGES[2], IMAGES[0], IMAGES[1]];
 
   await chooseStatus(page, "published");
   await page.getByRole("button", { name: "Save product" }).click();
@@ -73,9 +78,10 @@ test("an owner creates a product with several images and variants, and a shopper
 
   // What the form claims it saved is what the database holds.
   const stored = await withDb(async (sql) => {
-    const [product] = await sql`select id, title, description, status from products where handle = ${HANDLE}`;
+    const [product] = await sql`select id, title, description, status, audience, garment_type from products where handle = ${HANDLE}`;
     const media = await sql`
-      select object_key, alt_text from media_references where product_id = ${product.id} and status = 'active'
+      select object_key, alt_text, sort_order from media_references
+      where product_id = ${product.id} and status = 'active' order by sort_order
     `;
     const variants = await sql`select sku, color, price_amount, stock_quantity from product_variants where product_id = ${product.id}`;
     return { product, media, variants };
@@ -84,8 +90,10 @@ test("an owner creates a product with several images and variants, and a shopper
   expect(stored.product.title).toBe(TITLE);
   expect(stored.product.description).toBe(DESCRIPTION);
   expect(stored.product.status).toBe("published");
+  expect(stored.product.audience).toBe("unisex");
+  expect(stored.product.garment_type).toBe("tops");
   expect(stored.media).toHaveLength(3);
-  expect(stored.media.map((row) => row.object_key)).toEqual(IMAGES.map((image) => image.url));
+  expect(stored.media.map((row) => row.object_key)).toEqual(imageOrder.map((image) => image.url));
   expect(stored.variants).toHaveLength(2);
   expect(Number(stored.variants[0].price_amount)).toBe(1_260_000);
 

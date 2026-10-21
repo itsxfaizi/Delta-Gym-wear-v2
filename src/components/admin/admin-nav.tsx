@@ -7,6 +7,7 @@ export const ADMIN_LINKS = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/products", label: "Products" },
+  { href: "/admin/promotions", label: "Promo codes" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/team", label: "Team" },
 ] as const;

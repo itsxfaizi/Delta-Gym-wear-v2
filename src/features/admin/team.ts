@@ -2,11 +2,11 @@ import { z } from "zod";
 
 import { ADMIN_ROLES } from "./schemas";
 
-export const MEMBERSHIP_STATUSES = ["active", "suspended"] as const;
+export const MEMBERSHIP_STATUSES = ["invited", "active", "suspended"] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
-export const addMemberSchema = z.object({
-  authUserId: z.string().trim().uuid("Enter the member's Supabase auth user id (a UUID)."),
+export const inviteMemberSchema = z.object({
+  email: z.string().trim().email("Enter a valid email address.").transform((email) => email.toLowerCase()),
   role: z.enum(ADMIN_ROLES),
 });
 
@@ -17,7 +17,7 @@ export const changeRoleSchema = z.object({
 
 export const setStatusSchema = z.object({
   authUserId: z.string().uuid(),
-  status: z.enum(MEMBERSHIP_STATUSES),
+  status: z.enum(["active", "suspended"]),
 });
 
 /** What the owner guard needs: a membership's identity, role and standing. */

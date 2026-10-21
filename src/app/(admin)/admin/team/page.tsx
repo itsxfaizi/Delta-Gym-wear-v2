@@ -35,10 +35,7 @@ export default async function AdminTeamPage() {
       <div className="admin-header">
         <div>
           <h1>Team</h1>
-          <p className="admin-hint">
-            Owner-only. There is no invite API available yet — add a member by the Supabase auth user id they
-            already have.
-          </p>
+          <p className="admin-hint">Invite staff by email, then manage their role and access here. Owner-only.</p>
         </div>
       </div>
       <TeamTable members={members} selfId={selfId} />

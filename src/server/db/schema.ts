@@ -86,6 +86,8 @@ export const products = pgTable(
     handle: text("handle").notNull(),
     title: text("title").notNull(),
     description: text("description"),
+    audience: text("audience").$type<"male" | "female" | "unisex">(),
+    garmentType: text("garment_type").$type<"tops" | "bottoms">(),
     status: productStatus("status").notNull().default("draft"),
     currentRevisionId: uuid("current_revision_id"),
     version: integer("version").notNull().default(1),
@@ -96,6 +98,8 @@ export const products = pgTable(
     unique("products_tenant_id_id_unique").on(table.tenantId, table.id),
     unique("products_tenant_handle_unique").on(table.tenantId, table.handle),
     index("products_tenant_status_idx").on(table.tenantId, table.status),
+    index("products_tenant_audience_idx").on(table.tenantId, table.audience),
+    index("products_tenant_garment_type_idx").on(table.tenantId, table.garmentType),
   ],
 );
 
@@ -136,6 +140,7 @@ export const mediaReferences = pgTable(
     productId: uuid("product_id").notNull(),
     objectKey: text("object_key").notNull(),
     altText: text("alt_text"),
+    sortOrder: integer("sort_order").notNull().default(0),
     rightsSource: text("rights_source"),
     width: integer("width"),
     height: integer("height"),
@@ -304,6 +309,28 @@ export const cartItems = pgTable(
   ],
 );
 
+export const promoCodes = pgTable(
+  "promo_codes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "restrict" }),
+    code: text("code").notNull(),
+    kind: text("kind").$type<"percentage" | "fixed">().notNull(),
+    value: integer("value").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usageLimit: integer("usage_limit").notNull(),
+    usageCount: integer("usage_count").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("promo_codes_tenant_id_id_unique").on(table.tenantId, table.id),
+    unique("promo_codes_tenant_code_unique").on(table.tenantId, table.code),
+    index("promo_codes_tenant_active_idx").on(table.tenantId, table.active),
+  ],
+);
+
 export const orders = pgTable(
   "orders",
   {
@@ -320,6 +347,9 @@ export const orders = pgTable(
     paymentMethod: paymentMethod("payment_method").notNull().default("cod"),
     paymentStatus: paymentStatus("payment_status").notNull().default("unpaid"),
     subtotalAmount: integer("subtotal_amount").notNull(),
+    discountAmount: integer("discount_amount").notNull().default(0),
+    promoCodeId: uuid("promo_code_id"),
+    promoCode: text("promo_code"),
     shippingAmount: integer("shipping_amount").notNull().default(0),
     totalAmount: integer("total_amount").notNull(),
     currency: text("currency").notNull().default("PKR"),
@@ -337,6 +367,11 @@ export const orders = pgTable(
       name: "orders_tenant_customer_fk",
       columns: [table.tenantId, table.customerId],
       foreignColumns: [customers.tenantId, customers.id],
+    }),
+    foreignKey({
+      name: "orders_tenant_promo_fk",
+      columns: [table.tenantId, table.promoCodeId],
+      foreignColumns: [promoCodes.tenantId, promoCodes.id],
     }),
   ],
 );
@@ -437,6 +472,7 @@ export type Cart = typeof carts.$inferSelect;
 export type NewCart = typeof carts.$inferInsert;
 export type CartItem = typeof cartItems.$inferSelect;
 export type NewCartItem = typeof cartItems.$inferInsert;
+export type PromoCodeRow = typeof promoCodes.$inferSelect;
 export type OrderRow = typeof orders.$inferSelect;
 export type NewOrderRow = typeof orders.$inferInsert;
 export type OrderItemRow = typeof orderItems.$inferSelect;
@@ -454,6 +490,7 @@ export const schema = {
   addresses,
   carts,
   cartItems,
+  promoCodes,
   orders,
   orderItems,
 };
