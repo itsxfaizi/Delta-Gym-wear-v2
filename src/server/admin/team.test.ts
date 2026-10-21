@@ -52,4 +52,27 @@ describe("inviteTeamMember authorization", () => {
       else process.env.DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY = previous;
     }
   });
+
+  it("does not send another invitation to an email already on this tenant", async () => {
+    jest.mocked(requireAdminPrincipal).mockResolvedValue({
+      userId: "123e4567-e89b-42d3-a456-426614174000",
+      tenantId: "123e4567-e89b-42d3-a456-426614174001",
+      membership: { role: "owner", status: "active" },
+    });
+    const limit = jest.fn().mockResolvedValue([{ authUserId: "123e4567-e89b-42d3-a456-426614174002" }]);
+    const where = jest.fn().mockReturnValue({ limit });
+    const from = jest.fn().mockReturnValue({ where });
+    jest.mocked(createDatabase).mockReturnValue({ select: () => ({ from }) } as unknown as ReturnType<typeof createDatabase>);
+    const previousReadyFlag = process.env.DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY;
+    process.env.DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY = "true";
+
+    try {
+      const result = await inviteTeamMember({ email: "Staff@Example.com", role: "publisher" });
+      expect(result).toEqual({ ok: false, message: "That email already has a team membership on this store." });
+      expect(createSupabaseServiceClient).not.toHaveBeenCalled();
+    } finally {
+      if (previousReadyFlag === undefined) delete process.env.DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY;
+      else process.env.DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY = previousReadyFlag;
+    }
+  });
 });
