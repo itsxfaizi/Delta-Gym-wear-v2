@@ -59,7 +59,11 @@ export async function verifyMfaCode(rawInput: unknown): Promise<MfaResult> {
   if (access.state !== "mfa_required") {
     return { ok: false, message: "Sign in with your staff account to continue." };
   }
-  if (!consumeRateLimit(`mfa-verify:${access.principal.userId}`, 10, 10 * 60_000).allowed) {
+  const e2eVerifyLimit = process.env.NODE_ENV === "development" &&
+    process.env.DELTA_E2E_AUTH_RATE_LIMITS === "1"
+    ? 100
+    : 10;
+  if (!consumeRateLimit(`mfa-verify:${access.principal.userId}`, e2eVerifyLimit, 10 * 60_000).allowed) {
     return { ok: false, message: "Too many code attempts. Try again later." };
   }
 

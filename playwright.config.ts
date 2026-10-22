@@ -34,6 +34,7 @@ export default defineConfig({
       NEXT_PUBLIC_SITE_URL: baseURL,
       MAIL_PROVIDER: "console",
       DELTA_DEV_ADMIN: "",
+      DELTA_E2E_AUTH_RATE_LIMITS: "1",
       DELTA_INVITE_REDIRECT_READY: process.env.DELTA_INVITE_REDIRECT_READY ?? "",
       DELTA_INVITE_TEMPLATE_TOKEN_HASH_READY: "",
       DELTA_INVITE_EMAIL_READY: "",

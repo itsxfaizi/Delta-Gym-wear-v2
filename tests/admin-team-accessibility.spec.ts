@@ -28,6 +28,7 @@ test("owner team controls remain responsive and keyboard reachable", async ({ pa
   await page.keyboard.press("Enter");
   await expect(page.getByRole("option", { name: "auditor" })).toBeVisible();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("option", { name: "auditor" })).toBeHidden();
 
   for (const width of VIEWPORT_WIDTHS) {
     await page.setViewportSize({ width, height: 1000 });
@@ -36,10 +37,19 @@ test("owner team controls remain responsive and keyboard reachable", async ({ pa
     await expect(createLink).toBeInViewport();
     await expect(page.getByRole("heading", { name: "Members" })).toBeVisible();
 
-    const hasPageOverflow = await page.evaluate(() =>
-      document.documentElement.scrollWidth > window.innerWidth || document.body.scrollWidth > window.innerWidth,
-    );
-    expect(hasPageOverflow, `unexpected page-level horizontal overflow at ${width}px`).toBe(false);
+    const overflow = await page.evaluate(() => ({
+      page: document.documentElement.scrollWidth > window.innerWidth || document.body.scrollWidth > window.innerWidth,
+      elements: [...document.querySelectorAll<HTMLElement>("body *")]
+        .map((element) => ({
+          tag: element.tagName.toLowerCase(),
+          className: typeof element.className === "string" ? element.className : "",
+          right: Math.round(element.getBoundingClientRect().right),
+          left: Math.round(element.getBoundingClientRect().left),
+        }))
+        .filter((element) => element.right > window.innerWidth + 1 || element.left < -1)
+        .slice(0, 8),
+    }));
+    expect(overflow.page, `unexpected page-level horizontal overflow at ${width}px: ${JSON.stringify(overflow.elements)}`).toBe(false);
 
     // Team rows may scroll inside their own table container; the page itself
     // must remain within the viewport. No invite is generated in this spec.

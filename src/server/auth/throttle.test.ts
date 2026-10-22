@@ -19,6 +19,25 @@ describe("public auth throttle", () => {
     expect(await allowPublicAuthAttempt("sign-in", "User@Example.com")).toBe(false);
   });
 
+  it("uses the higher sign-in cap only when explicitly enabled for local E2E", async () => {
+    const mutableEnv = process.env as Record<string, string | undefined>;
+    const originalNodeEnv = mutableEnv.NODE_ENV;
+    const originalE2eFlag = mutableEnv.DELTA_E2E_AUTH_RATE_LIMITS;
+    mutableEnv.NODE_ENV = "development";
+    mutableEnv.DELTA_E2E_AUTH_RATE_LIMITS = "1";
+
+    try {
+      for (let index = 0; index < 9; index++) {
+        expect(await allowPublicAuthAttempt("sign-in", "e2e-owner@example.com")).toBe(true);
+      }
+    } finally {
+      if (originalNodeEnv === undefined) delete mutableEnv.NODE_ENV;
+      else mutableEnv.NODE_ENV = originalNodeEnv;
+      if (originalE2eFlag === undefined) delete mutableEnv.DELTA_E2E_AUTH_RATE_LIMITS;
+      else mutableEnv.DELTA_E2E_AUTH_RATE_LIMITS = originalE2eFlag;
+    }
+  });
+
   it("caps reset requests for one account and keeps sign-in separate", async () => {
     for (let index = 0; index < 3; index++) {
       expect(await allowPublicAuthAttempt("password-reset", "user@example.com")).toBe(true);
