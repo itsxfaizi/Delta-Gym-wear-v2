@@ -16,11 +16,11 @@ export function CatalogView({
   facets: CatalogFacets;
   title?: string;
 }) {
-  const hasFilters = Boolean(filters.q || filters.sizes.length || filters.colors.length || filters.maxPrice);
+  const hasFilters = Boolean(filters.q || filters.sizes.length || filters.colors.length || filters.audiences.length || filters.garmentTypes.length || filters.maxPrice);
   const resultSummary = `${products.length} product${products.length === 1 ? "" : "s"}`;
   // Filters and search live entirely in the URL, so the local control state is
   // re-seeded from the server-parsed filters whenever that URL changes.
-  const controlsKey = `${filters.q}:${filters.sizes.join(",")}:${filters.colors.join(",")}:${filters.maxPrice ?? ""}:${filters.sort}`;
+  const controlsKey = `${filters.q}:${filters.sizes.join(",")}:${filters.colors.join(",")}:${filters.audiences.join(",")}:${filters.garmentTypes.join(",")}:${filters.maxPrice ?? ""}:${filters.sort}`;
 
   return (
     <main className="catalog-page">

@@ -23,6 +23,8 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
     paymentMethod: "cod",
     paymentStatus: "unpaid",
     subtotalAmount: 450_000,
+    discountAmount: 0,
+    promoCode: null,
     shippingAmount: 25_000,
     totalAmount: 475_000,
     currency: "PKR",
@@ -46,6 +48,11 @@ function makeOrder(overrides: Partial<Order> = {}): Order {
 }
 
 describe("buildOrderReceiptEmail", () => {
+  it("shows the snapshotted promo discount", () => {
+    const email = buildOrderReceiptEmail(makeOrder({ discountAmount: 50_000, promoCode: "DELTA10", totalAmount: 425_000 }));
+    expect(email.text).toContain("Promo DELTA10: -PKR 500");
+    expect(email.html).toContain("Promo DELTA10");
+  });
   it("includes order number, line items, totals, address, and explicit COD wording", () => {
     const email = buildOrderReceiptEmail(makeOrder());
 

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { resetPasswordSchema, type ResetPasswordInput } from "@/features/account/schemas";
+import { resetPasswordSchema, safeNextPath, type ResetPasswordInput } from "@/features/account/schemas";
 import { updatePassword } from "@/server/auth/actions";
 
 export function ResetPasswordForm() {
@@ -28,7 +28,7 @@ export function ResetPasswordForm() {
     }
 
     toast.success("Your password has been updated.");
-    router.replace("/account");
+    router.replace(safeNextPath(new URLSearchParams(window.location.search).get("next")));
   }
 
   return (

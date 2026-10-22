@@ -2,12 +2,13 @@ import {
   CREATABLE_STATUSES,
   EMPTY_PRODUCT,
   EMPTY_VARIANT,
+  hasImageWithoutAltText,
   parseProductFilters,
   productFormSchema,
   slugify,
 } from "./schemas";
 
-const validVariant = { ...EMPTY_VARIANT, sku: "DG-1", priceAmount: "450000", stockQuantity: "12" };
+const validVariant = { ...EMPTY_VARIANT, sku: "DG-1", priceAmount: "4500", stockQuantity: "12" };
 const validProduct = {
   ...EMPTY_PRODUCT,
   title: "Delta Tee",
@@ -16,7 +17,12 @@ const validProduct = {
 };
 
 describe("productFormSchema", () => {
-  it("parses money and quantity strings into integer minor units", () => {
+  it("blocks the separate publish action when saved draft media lacks alt text", () => {
+    expect(hasImageWithoutAltText([{ altText: null }])).toBe(true);
+    expect(hasImageWithoutAltText([{ altText: "   " }])).toBe(true);
+    expect(hasImageWithoutAltText([{ altText: "Model wearing Delta tee" }])).toBe(false);
+  });
+  it("parses rupees and quantity strings into integer minor units", () => {
     const parsed = productFormSchema.parse(validProduct);
 
     expect(parsed.variants[0].priceAmount).toBe(450000);
@@ -26,10 +32,11 @@ describe("productFormSchema", () => {
     expect(parsed.description).toBeNull();
   });
 
-  it("rejects fractional or non-numeric prices", () => {
+  it("accepts two decimal places and rejects a fractional paisa", () => {
+    expect(productFormSchema.parse({ ...validProduct, variants: [{ ...validVariant, priceAmount: "4500.50" }] }).variants[0].priceAmount).toBe(450050);
     const result = productFormSchema.safeParse({
       ...validProduct,
-      variants: [{ ...validVariant, priceAmount: "4500.50" }],
+      variants: [{ ...validVariant, priceAmount: "4500.505" }],
     });
 
     expect(result.success).toBe(false);
@@ -38,7 +45,7 @@ describe("productFormSchema", () => {
   it("rejects a compare-at price that is not above the selling price", () => {
     const result = productFormSchema.safeParse({
       ...validProduct,
-      variants: [{ ...validVariant, compareAtPriceAmount: "450000" }],
+      variants: [{ ...validVariant, compareAtPriceAmount: "4500" }],
     });
 
     expect(result.success).toBe(false);
@@ -73,6 +80,11 @@ describe("productFormSchema", () => {
         media: [{ objectKey: "https://cdn.example.com/shirt.png", altText: "" }],
       }).success,
     ).toBe(true);
+  });
+
+  it("requires alt text before a product with images is published", () => {
+    expect(productFormSchema.safeParse({ ...validProduct, status: "published", media: [{ objectKey: "https://example.com/front.jpg", altText: "" }] }).success).toBe(false);
+    expect(productFormSchema.safeParse({ ...validProduct, status: "published", media: [{ objectKey: "https://example.com/front.jpg", altText: "Model wearing the front of the Delta tee" }] }).success).toBe(true);
   });
 });
 
@@ -126,7 +138,7 @@ describe("productFormSchema is idempotent", () => {
   });
 
   it("still rejects a fractional price when it arrives as a string", () => {
-    const bad = { ...validProduct, variants: [{ ...validVariant, priceAmount: "12.50" }] };
+    const bad = { ...validProduct, variants: [{ ...validVariant, priceAmount: "12.500" }] };
 
     expect(productFormSchema.safeParse(bad).success).toBe(false);
   });

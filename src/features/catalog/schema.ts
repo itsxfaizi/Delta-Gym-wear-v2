@@ -26,6 +26,8 @@ const MAX_CATALOG_PRICE_MINOR_UNITS = 1_000_000_000;
 
 const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
   q: "",
+  audiences: [],
+  garmentTypes: [],
   sizes: [],
   colors: [],
   sort: "featured",
@@ -75,6 +77,10 @@ export function parseCatalogSearchParams(raw: CatalogSearchParams): CatalogFilte
 
   return {
     q: q.slice(0, MAX_CATALOG_QUERY_LENGTH),
+    audiences: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "audience"))
+      .filter((value): value is CatalogFilters["audiences"][number] => ["male", "female", "unisex"].includes(value)),
+    garmentTypes: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "garmentType"))
+      .filter((value): value is CatalogFilters["garmentTypes"][number] => ["tops", "bottoms"].includes(value)),
     sizes: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "size")),
     colors: normalizeCatalogFilterValues(getCatalogSearchParamValues(raw, "color")),
     sort,

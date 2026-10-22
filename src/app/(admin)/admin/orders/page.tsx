@@ -12,6 +12,8 @@ import {
 } from "@/features/orders/types";
 import { formatMoney } from "@/lib/money";
 import { resolveCodStatus } from "@/server/ops/order-ops";
+import { requireAdminPrincipal } from "@/server/admin/guard";
+import { ADMIN_ROLES } from "@/features/admin/schemas";
 import {
   OrdersDatabaseUnavailableError,
   countOrdersPerStatus,
@@ -66,6 +68,7 @@ export default async function AdminOrdersPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
+  await requireAdminPrincipal(ADMIN_ROLES);
   const params = await searchParams;
   const rawStatus = first(params.status);
   const status = (ORDER_STATUSES as readonly string[]).includes(rawStatus)

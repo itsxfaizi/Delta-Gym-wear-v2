@@ -16,12 +16,12 @@ const TEXT_FIELDS = [
 ] as const;
 
 const NUMBER_FIELDS = [
-  { name: "priceAmount", label: "Price (paisa)" },
-  { name: "compareAtPriceAmount", label: "Compare at (paisa)" },
+  { name: "priceAmount", label: "Price (PKR)" },
+  { name: "compareAtPriceAmount", label: "Compare at (PKR)" },
   { name: "stockQuantity", label: "Stock" },
 ] as const;
 
-/** One variant row of the product form; prices are entered in PKR minor units. */
+/** One variant row of the product form; prices are entered in rupees. */
 export function VariantFields({
   form,
   index,
@@ -73,7 +73,7 @@ export function VariantFields({
             <label htmlFor={`variant-${index}-${field.name}`}>{field.label}</label>
             <input
               id={`variant-${index}-${field.name}`}
-              inputMode="numeric"
+              inputMode={field.name === "stockQuantity" ? "numeric" : "decimal"}
               aria-invalid={errors?.[field.name] ? "true" : "false"}
               {...register(`variants.${index}.${field.name}`)}
             />

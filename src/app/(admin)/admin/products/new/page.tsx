@@ -8,7 +8,7 @@ export default function NewProductPage() {
       <div className="admin-header">
         <div>
           <h1>New product</h1>
-          <p className="admin-hint">A product needs at least one variant with a SKU and a price in paisa.</p>
+          <p className="admin-hint">A product needs at least one variant with a SKU and a price in rupees.</p>
         </div>
       </div>
       <div className="products-editor">

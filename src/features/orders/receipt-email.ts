@@ -61,6 +61,7 @@ export function buildOrderReceiptEmail(order: Order, options: { trackingUrl?: st
     ...itemLines.map((item) => `- ${item.text}`),
     "",
     `Subtotal: ${formatMoney(order.subtotalAmount, currency)}`,
+    ...(order.discountAmount > 0 ? [`Promo ${order.promoCode}: -${formatMoney(order.discountAmount, currency)}`] : []),
     `Shipping: ${order.shippingAmount === 0 ? "Free" : formatMoney(order.shippingAmount, currency)}`,
     `Total: ${formatMoney(order.totalAmount, currency)}`,
     "",
@@ -81,6 +82,7 @@ export function buildOrderReceiptEmail(order: Order, options: { trackingUrl?: st
       </table>
       <p>
         Subtotal: ${formatMoney(order.subtotalAmount, currency)}<br/>
+        ${order.discountAmount > 0 ? `Promo ${escapeHtml(order.promoCode ?? "")}: -${formatMoney(order.discountAmount, currency)}<br/>` : ""}
         Shipping: ${order.shippingAmount === 0 ? "Free" : formatMoney(order.shippingAmount, currency)}<br/>
         <strong>Total: ${formatMoney(order.totalAmount, currency)}</strong>
       </p>

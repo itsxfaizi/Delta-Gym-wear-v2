@@ -11,10 +11,9 @@ import type { ProductStatus } from "@/features/admin/schemas";
  * The one publish toggle. Archiving stays in the product form's status field,
  * so a list row cannot archive by mis-click.
  */
-const NEXT = (status: ProductStatus) =>
-  status === "published"
-    ? ({ status: "unpublished", label: "Unpublish" } as const)
-    : ({ status: "published", label: "Publish" } as const);
+const NEXT = (status: ProductStatus) => status === "published"
+  ? ({ status: "unpublished", label: "Unpublish" } as const)
+  : status === "draft" ? ({ status: "published", label: "Publish" } as const) : null;
 
 /** Publisher-only shortcut; a non-publisher gets a refusal from the action. */
 export function ProductStatusActions({ productId, status }: { productId: string; status: ProductStatus }) {
@@ -23,17 +22,22 @@ export function ProductStatusActions({ productId, status }: { productId: string;
 
   function move(next: ProductStatus) {
     startTransition(async () => {
-      const result = await changeProductStatus(productId, next);
-      if (!result.ok) {
-        toast.error(result.message);
-        return;
+      try {
+        const result = await changeProductStatus(productId, next);
+        if (!result.ok) {
+          toast.error(result.message);
+          return;
+        }
+        toast.success(`Product ${next}.`);
+        router.refresh();
+      } catch {
+        toast.error("The product status could not be changed. Try again.");
       }
-      toast.success(`Product ${next}.`);
-      router.refresh();
     });
   }
 
   const transition = NEXT(status);
+  if (!transition) return null;
 
   return (
     <button className="admin-button" type="button" disabled={isPending} onClick={() => move(transition.status)}>

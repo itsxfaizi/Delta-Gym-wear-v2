@@ -67,6 +67,8 @@ function toOrderSummary(row: OrderRow): OrderSummary {
     paymentMethod: row.paymentMethod,
     paymentStatus: row.paymentStatus,
     subtotalAmount: row.subtotalAmount,
+    discountAmount: row.discountAmount,
+    promoCode: row.promoCode,
     shippingAmount: row.shippingAmount,
     totalAmount: row.totalAmount,
     currency: row.currency,

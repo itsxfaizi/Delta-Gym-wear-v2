@@ -19,6 +19,7 @@ const plexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600
 const fontClass = `${outfit.variable} ${plexMono.variable}`;
 
 export const metadata = { title: "Delta admin" };
+export const dynamic = "force-dynamic";
 
 /**
  * The whole /admin segment is gated here, on the server. No page below this
@@ -28,6 +29,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
   const access = await resolveAdminAccess();
 
   if (access.state === "unauthenticated") redirect(loginRedirectPath("/admin"));
+  if (access.state === "mfa_required") redirect("/admin-mfa");
 
   if (access.state === "forbidden") {
     return (

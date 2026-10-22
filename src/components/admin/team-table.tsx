@@ -5,22 +5,23 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import type { z } from "zod";
 
 import { StatusSelect } from "@/components/admin/status-select";
 import { ADMIN_ROLES } from "@/features/admin/schemas";
 import {
-  addMemberSchema,
+  inviteMemberSchema,
   isLastActiveOwner,
   type MemberRow,
-  type addMemberSchema as AddMemberSchema,
 } from "@/features/admin/team";
 import {
-  addMemberAction,
+  inviteMemberAction,
+  createInvitationLinkAction,
   changeMemberRoleAction,
   setMemberStatusAction,
 } from "@/features/admin/team-actions";
 
-type AddMemberInput = import("zod").infer<typeof AddMemberSchema>;
+type InviteMemberInput = z.infer<typeof inviteMemberSchema>;
 
 /** Wording tracks what the guards actually enforce, not the design mockup. */
 const ROLE_NOTES: Record<(typeof ADMIN_ROLES)[number], string> = {
@@ -33,10 +34,17 @@ const ROLE_NOTES: Record<(typeof ADMIN_ROLES)[number], string> = {
 /* The mockup shows the raw role key everywhere, matching the reference panel. */
 const ROLE_OPTIONS = ADMIN_ROLES.map((role) => ({ value: role, label: role }));
 
-export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; selfId: string }) {
+export function TeamTable({ members, selfId, emailInvitesEnabled = false }: {
+  members: readonly MemberRow[];
+  selfId: string;
+  emailInvitesEnabled?: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState("");
 
   const {
     register,
@@ -44,55 +52,89 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
     reset,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<AddMemberInput>({
-    resolver: zodResolver(addMemberSchema),
-    defaultValues: { authUserId: "", role: "auditor" },
+  } = useForm<InviteMemberInput>({
+    resolver: zodResolver(inviteMemberSchema),
+    defaultValues: { email: "", role: "auditor" },
   });
 
-  function run(label: string, action: () => Promise<{ ok: boolean; message?: string }>, authUserId: string) {
+  function run(label: string, action: () => Promise<{ ok: boolean; message?: string }>, authUserId: string, clearLinkOnSuccess = false) {
     setBusyId(authUserId);
     startTransition(async () => {
-      const result = await action();
-      setBusyId(null);
-      if (!result.ok) {
-        toast.error(result.message ?? "That did not work.");
-        return;
+      try {
+        const result = await action();
+        if (!result.ok) {
+          toast.error(result.message ?? "That did not work.");
+          return;
+        }
+        if (clearLinkOnSuccess) clearInvitationLink();
+        toast.success(label);
+        router.refresh();
+      } catch {
+        toast.error("The team change could not be saved. Check your connection and try again.");
+      } finally {
+        setBusyId(null);
       }
-      toast.success(label);
-      router.refresh();
     });
   }
 
-  async function onAdd(values: AddMemberInput) {
-    const result = await addMemberAction(values);
-    if (!result.ok) {
-      toast.error(result.message ?? "That did not work.");
-      return;
+  function clearInvitationLink() {
+    setInviteUrl(null);
+    setCopyStatus("");
+  }
+
+  async function onInvite(values: InviteMemberInput, delivery: "link" | "email" = "link") {
+    clearInvitationLink();
+    setInviteError(null);
+    try {
+      const result = await (delivery === "link" ? createInvitationLinkAction(values) : inviteMemberAction(values));
+      if (!result.ok) {
+        setInviteError(result.message ?? "The invitation could not be created. Please try again.");
+        return;
+      }
+      if ("inviteUrl" in result && typeof result.inviteUrl === "string") {
+        setInviteUrl(result.inviteUrl);
+        toast.success("Invitation link created.");
+      } else {
+        toast.success("Invitation sent. Access starts after they accept and choose a password.");
+      }
+      reset();
+      router.refresh();
+    } catch {
+      setInviteError("The invitation could not be created. Check your connection and try again.");
     }
-    toast.success("Member added.");
-    reset();
-    router.refresh();
+  }
+
+  async function copyInvitationLink() {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopyStatus("Link copied.");
+    } catch {
+      setCopyStatus("Copy is unavailable. Select the invitation link and copy it manually.");
+    }
   }
 
   return (
     <>
       <div className="admin-columns team-top">
-        <form className="admin-panel team-add" onSubmit={handleSubmit(onAdd)} noValidate>
-          <h2>Add a member</h2>
+        <form className="admin-panel team-add" onSubmit={handleSubmit((values) => onInvite(values))} onChange={clearInvitationLink} noValidate aria-busy={isSubmitting}>
+          <h2>Invite a team member</h2>
           <div className="admin-field">
-            <label htmlFor="member-auth-id">Auth user id</label>
+            <label htmlFor="member-email">Email address</label>
             <input
-              id="member-auth-id"
-              className="team-id-input"
-              autoComplete="off"
-              placeholder="00000000-0000-0000-0000-000000000000"
-              aria-invalid={errors.authUserId ? "true" : "false"}
-              aria-describedby={errors.authUserId ? "member-auth-id-error" : undefined}
-              {...register("authUserId")}
+              id="member-email"
+              type="email"
+              autoComplete="email"
+              disabled={isSubmitting}
+              placeholder="teammate@example.com"
+              aria-invalid={errors.email ? "true" : "false"}
+              aria-describedby={errors.email ? "member-email-error" : "member-email-help"}
+              {...register("email")}
             />
-            {errors.authUserId ? (
-              <span className="admin-error" id="member-auth-id-error" role="alert">
-                {errors.authUserId.message}
+            <span className="admin-hint" id="member-email-help">Create a private invitation link for this email address.</span>
+            {errors.email ? (
+              <span className="admin-error" id="member-email-error" role="alert">
+                {errors.email.message}
               </span>
             ) : null}
           </div>
@@ -107,16 +149,31 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                   value={field.value}
                   options={ROLE_OPTIONS}
                   disabled={isSubmitting}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => { clearInvitationLink(); field.onChange(value); }}
                 />
               )}
             />
           </div>
           <div className="admin-actions">
             <button className="admin-button admin-button--primary team-submit" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Adding…" : "Add member"}
+              {isSubmitting ? "Creating…" : "Create invitation link"}
             </button>
+            <button className="admin-button" type="button" disabled={isSubmitting || !emailInvitesEnabled} onClick={handleSubmit((values) => onInvite(values, "email"))}>Send invitation email</button>
           </div>
+          {!emailInvitesEnabled ? <p className="admin-hint">Email invitations are disabled until delivery is configured. Create a private link and share it with the staff member.</p> : null}
+          {inviteError ? <p className="admin-error" role="alert">{inviteError}</p> : null}
+          {inviteUrl ? (
+            <div className="admin-field">
+              <label htmlFor="staff-invitation-link">Staff invitation link</label>
+              <input id="staff-invitation-link" type="text" value={inviteUrl} readOnly autoComplete="off" spellCheck={false} aria-describedby="staff-invitation-help" onFocus={(event) => event.currentTarget.select()} />
+              <p className="admin-hint" id="staff-invitation-help">Share this one-time link privately with this staff member. They choose a password and set up an authenticator.</p>
+              <div className="admin-actions">
+                <button className="admin-button" type="button" onClick={copyInvitationLink}>Copy link</button>
+                <button className="admin-button" type="button" onClick={clearInvitationLink}>Dismiss link</button>
+              </div>
+              <p className="admin-hint" role="status">{copyStatus}</p>
+            </div>
+          ) : null}
         </form>
 
         <section className="admin-panel" aria-labelledby="team-roles">
@@ -167,7 +224,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                           label={`Role for ${member.email ?? member.authUserId}`}
                           value={member.role}
                           options={ROLE_OPTIONS}
-                          disabled={busy || lastOwner}
+                          disabled={busy || lastOwner || member.status === "cancelled"}
                           onValueChange={(role) =>
                             run("Role updated.", () => changeMemberRoleAction({ authUserId: member.authUserId, role }), member.authUserId)
                           }
@@ -175,27 +232,28 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                       </td>
                       <td data-label="Status">
                         <span className="admin-status team-status" data-state={member.status}>
-                          {member.status === "active" ? "Active" : "Revoked"}
+                          {member.status === "active" ? "Active" : member.status === "invited" ? "Invited" : member.status === "cancelled" ? "Cancelled" : "Revoked"}
                         </span>
                       </td>
                       <td className="team-actions" data-label="Actions">
                         <button
-                          className={`admin-button team-button${member.status === "active" ? " admin-button--danger" : ""}`}
+                          className={`admin-button team-button${member.status === "active" || member.status === "invited" ? " admin-button--danger" : ""}`}
                           type="button"
-                          disabled={busy || lastOwner}
+                          disabled={busy || lastOwner || member.status === "cancelled"}
                           onClick={() =>
                             run(
-                              member.status === "active" ? "Access revoked." : "Access restored.",
+                              member.status === "invited" ? "Invitation cancelled." : member.status === "active" ? "Access revoked." : "Access restored.",
                               () =>
                                 setMemberStatusAction({
                                   authUserId: member.authUserId,
-                                  status: member.status === "active" ? "suspended" : "active",
+                                  status: member.status === "suspended" ? "active" : "suspended",
                                 }),
                               member.authUserId,
+                              member.status === "invited",
                             )
                           }
                         >
-                          {busy ? "Working…" : member.status === "active" ? "Revoke" : "Restore"}
+                          {busy ? "Working…" : member.status === "cancelled" ? "Invitation cancelled" : member.status === "invited" ? "Cancel invitation" : member.status === "active" ? "Revoke" : "Restore"}
                         </button>
                         {lastOwner ? (
                           <p className="admin-hint">The last active owner cannot be changed.</p>

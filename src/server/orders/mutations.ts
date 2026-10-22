@@ -5,6 +5,7 @@ import { and, eq, gte, inArray, sql } from "drizzle-orm";
 import { OutOfStockError, assertSufficientStock, type StockVariant } from "@/features/orders/inventory";
 import { buildOrderNumber } from "@/features/orders/order-number";
 import { ORDER_PRICING, assertTransition, calculateOrderTotals } from "@/features/orders/orders";
+import { calculatePromotionDiscount, PromotionError } from "@/features/promotions/promotions";
 import { buildOrderReceiptEmail } from "@/features/orders/receipt-email";
 import { checkoutInputSchema, orderStatusTransitionSchema } from "@/features/orders/schemas";
 import type { CartLineSnapshot, Order, OrderStatus } from "@/features/orders/types";
@@ -20,6 +21,7 @@ import {
   orders,
   productVariants,
   products,
+  promoCodes,
 } from "@/server/db/schema";
 
 /** A confirmation email must never block or roll back an order that already committed. */
@@ -130,7 +132,26 @@ export async function placeCodOrder(
       };
     });
 
-    const totals = calculateOrderTotals(lines);
+    const subtotal = calculateOrderTotals(lines).subtotalAmount;
+    let discountAmount = 0;
+    let promo: { id: string; code: string } | null = null;
+    if (parsed.promoCode) {
+      const [candidate] = await tx.select().from(promoCodes)
+        .where(and(eq(promoCodes.tenantId, tenantId), eq(promoCodes.code, parsed.promoCode)))
+        .limit(1).for("update");
+      if (!candidate) throw new PromotionError("unknown");
+      discountAmount = calculatePromotionDiscount(subtotal, candidate, placedAt);
+      const [consumed] = await tx.update(promoCodes)
+        .set({ usageCount: sql`${promoCodes.usageCount} + 1`, updatedAt: placedAt })
+        .where(and(
+          eq(promoCodes.tenantId, tenantId), eq(promoCodes.id, candidate.id),
+          eq(promoCodes.active, true), gte(promoCodes.expiresAt, placedAt),
+          sql`${promoCodes.usageCount} < ${promoCodes.usageLimit}`,
+        )).returning({ id: promoCodes.id });
+      if (!consumed) throw new PromotionError("exhausted");
+      promo = { id: candidate.id, code: candidate.code };
+    }
+    const totals = calculateOrderTotals(lines, ORDER_PRICING, discountAmount);
 
     // ponytail: per-day count is the sequence source. The unique order_number
     // constraint is the real guard; swap in a Postgres sequence if it ever collides.
@@ -152,6 +173,9 @@ export async function placeCodOrder(
         paymentMethod: "cod",
         paymentStatus: "unpaid",
         subtotalAmount: totals.subtotalAmount,
+        discountAmount: totals.discountAmount,
+        promoCodeId: promo?.id ?? null,
+        promoCode: promo?.code ?? null,
         shippingAmount: totals.shippingAmount,
         totalAmount: totals.totalAmount,
         currency: ORDER_PRICING.currency,

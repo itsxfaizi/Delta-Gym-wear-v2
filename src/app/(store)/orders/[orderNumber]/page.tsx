@@ -93,6 +93,10 @@ export default async function OrderReceiptPage({ params }: { params: Promise<{ o
             <dt>Subtotal</dt>
             <dd>{formatMoney(order.subtotalAmount, order.currency)}</dd>
           </div>
+          {order.discountAmount > 0 ? <div>
+            <dt>Promo code {order.promoCode ? `(${order.promoCode})` : ""}</dt>
+            <dd>−{formatMoney(order.discountAmount, order.currency)}</dd>
+          </div> : null}
           <div>
             <dt>Shipping</dt>
             <dd>

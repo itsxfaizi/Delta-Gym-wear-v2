@@ -42,6 +42,8 @@ export type CatalogProduct = {
   handle: string;
   title: string;
   description: string | null;
+  audience?: "male" | "female" | "unisex" | null;
+  garmentType?: "tops" | "bottoms" | null;
   status: "published";
   priceAmount: number;
   compareAtPriceAmount: number | null;
@@ -62,6 +64,8 @@ export type CatalogSort = (typeof CATALOG_SORTS)[number];
 
 export type CatalogFilters = {
   q: string;
+  audiences: readonly ("male" | "female" | "unisex")[];
+  garmentTypes: readonly ("tops" | "bottoms")[];
   sizes: readonly string[];
   colors: readonly string[];
   sort: CatalogSort;
@@ -75,10 +79,12 @@ export type CatalogFilters = {
 export type CatalogPriceBounds = { min: number; max: number };
 
 /**
- * Filter options derived from the published catalog itself, so the rail never
- * offers a size, colour, or price that no published product actually has.
+ * Categories use the approved taxonomy; size, colour, and price options come
+ * from published products so those controls stay relevant to the catalog.
  */
 export type CatalogFacets = {
+  audiences: readonly ("male" | "female" | "unisex")[];
+  garmentTypes: readonly ("tops" | "bottoms")[];
   sizes: readonly string[];
   colors: readonly string[];
   /** null when every product shares one price: a range control would be inert. */
@@ -89,7 +95,7 @@ export type CatalogCollection = {
   handle: "all";
   title: "All Products";
   products: readonly CatalogProduct[];
-  /** Derived from the unfiltered published catalog, so options never vanish mid-filter. */
+  /** Category taxonomy and unfiltered catalog facets, stable while filtering. */
   facets: CatalogFacets;
 };
 

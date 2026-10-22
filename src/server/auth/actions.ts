@@ -12,8 +12,10 @@ import {
 import { createDatabase } from "@/server/db";
 import { customers } from "@/server/db/schema";
 import { getCatalogTenantId, getServerEnv } from "@/server/env";
+import { activateInvitedMembership } from "@/server/admin/team";
 
 import { createSupabaseServerClient } from "./supabase";
+import { allowPublicAuthAttempt } from "./throttle";
 
 /** Auth failures are returned as data; an uncaught throw would leak a stack to the client. */
 function failure(message: string): ActionResult {
@@ -83,6 +85,10 @@ export async function signIn(rawInput: unknown): Promise<ActionResult> {
   const parsed = signInSchema.safeParse(rawInput);
   if (!parsed.success) return failure("Check the highlighted fields and try again.");
 
+  if (!await allowPublicAuthAttempt("sign-in", parsed.data.email)) {
+    return failure("Too many sign-in attempts. Please wait a few minutes and try again.");
+  }
+
   const supabase = await createSupabaseServerClient();
   const { error } = await supabase.auth.signInWithPassword(parsed.data);
 
@@ -102,6 +108,9 @@ export async function requestPasswordReset(rawInput: unknown): Promise<ActionRes
   const parsed = forgotPasswordSchema.safeParse(rawInput);
   if (!parsed.success) return failure("Enter a valid email address.");
 
+  // A throttled request still gets the same response as a delivered email.
+  if (!await allowPublicAuthAttempt("password-reset", parsed.data.email)) return { ok: true };
+
   const supabase = await createSupabaseServerClient();
   await supabase.auth.resetPasswordForEmail(parsed.data.email, {
     redirectTo: `${getServerEnv().APP_URL}/auth/callback?next=/reset-password`,
@@ -120,11 +129,20 @@ export async function updatePassword(rawInput: unknown): Promise<ActionResult> {
   if (!parsed.success) return failure("Check the password fields and try again.");
 
   const supabase = await createSupabaseServerClient();
+  const { data: identity, error: identityError } = await supabase.auth.getUser();
+  if (identityError || !identity.user) return failure("That reset link has expired. Request a new one.");
   const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
 
   if (error) {
     console.error("updatePassword failed", error);
     return failure("That reset link has expired. Request a new one.");
+  }
+
+  try {
+    await activateInvitedMembership(identity.user.id);
+  } catch (activationError) {
+    console.error("updatePassword: invite activation failed", activationError);
+    return failure("Your password changed, but team access could not be activated. Please try again.");
   }
 
   return { ok: true };

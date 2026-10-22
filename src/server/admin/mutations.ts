@@ -1,12 +1,13 @@
 import "server-only";
 
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
-import { CREATABLE_STATUSES, PRODUCT_EDITOR_ROLES, PRODUCT_PUBLISHER_ROLES, productFormSchema, type ProductFormInput, type ProductStatus } from "@/features/admin/schemas";
+import { CREATABLE_STATUSES, PRODUCT_EDITOR_ROLES, PRODUCT_PUBLISHER_ROLES, hasImageWithoutAltText, productFormSchema, type ProductFormInput, type ProductStatus } from "@/features/admin/schemas";
 import { ORDER_PRICING } from "@/features/orders/orders";
+import { canTransitionProductStatus } from "@/features/catalog/types";
 import type { AuthenticatedPrincipal } from "@/server/authorization";
 import { createDatabase, type Database } from "@/server/db";
-import { auditEvents, mediaReferences, productRevisions, productVariants, products } from "@/server/db/schema";
+import { auditEvents, mediaReferences, productImageObjects, productRevisions, productVariants, products } from "@/server/db/schema";
 import { requireAdminPrincipal } from "./guard";
 
 export class AdminDatabaseUnavailableError extends Error {
@@ -24,6 +25,22 @@ export class ProductNotFoundError extends Error {
   constructor(productId: string) {
     super(`Product ${productId} was not found.`);
     this.name = "ProductNotFoundError";
+  }
+}
+
+export class InvalidProductTransitionError extends Error {
+  public readonly code = "INVALID_PRODUCT_TRANSITION" as const;
+
+  constructor(from: ProductStatus, to: ProductStatus) {
+    super(`You cannot move this product from ${from} to ${to}. Save the content first, then use an authorized status action.`);
+    this.name = "InvalidProductTransitionError";
+  }
+}
+
+export class MissingProductImageAltTextError extends Error {
+  constructor() {
+    super("Add alt text to every product image before publishing.");
+    this.name = "MissingProductImageAltTextError";
   }
 }
 
@@ -80,6 +97,7 @@ async function recordMutation(
     action: input.action,
     targetType: "product",
     targetId: input.productId,
+    requestId: crypto.randomUUID(),
     outcome: "success",
     before: input.before,
     after: input.snapshot,
@@ -144,6 +162,20 @@ async function syncVariants(tx: Tx, tenantId: string, productId: string, parsed:
 /** Media has no dependents, so the form is the whole truth for it. */
 async function syncMedia(tx: Tx, tenantId: string, productId: string, parsed: ProductFormInput) {
   const keys = parsed.media.map((item) => item.objectKey);
+  const previous = await tx.select({ objectKey: mediaReferences.objectKey }).from(mediaReferences)
+    .where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.productId, productId)));
+  const touchedUrls = [...new Set([...previous.map((item) => item.objectKey), ...keys])];
+  // Cleanup locks the same lifecycle row before calling Storage. A concurrent
+  // editor waits, then refuses to attach an image already removed from Storage.
+  const tracked = touchedUrls.length ? await tx
+    .select({ objectPath: productImageObjects.objectPath, publicUrl: productImageObjects.publicUrl, deletedAt: productImageObjects.deletedAt })
+    .from(productImageObjects)
+    .where(and(eq(productImageObjects.tenantId, tenantId), inArray(productImageObjects.publicUrl, touchedUrls)))
+    .orderBy(asc(productImageObjects.objectPath))
+    .for("update") : [];
+  if (tracked.some((image) => image.deletedAt && keys.includes(image.publicUrl))) {
+    throw new Error("A product image has expired. Upload it again before saving.");
+  }
 
   await tx
     .delete(mediaReferences)
@@ -155,14 +187,23 @@ async function syncMedia(tx: Tx, tenantId: string, productId: string, parsed: Pr
       ),
     );
 
-  for (const item of parsed.media) {
+  for (const [sortOrder, item] of parsed.media.entries()) {
     await tx
       .insert(mediaReferences)
-      .values({ tenantId, productId, objectKey: item.objectKey, altText: item.altText })
+      .values({ tenantId, productId, objectKey: item.objectKey, altText: item.altText, sortOrder })
       .onConflictDoUpdate({
         target: [mediaReferences.tenantId, mediaReferences.objectKey],
-        set: { productId, altText: item.altText, updatedAt: new Date() },
+        set: { productId, altText: item.altText, sortOrder, updatedAt: new Date() },
       });
+  }
+
+  for (const image of tracked) {
+    const [reference] = await tx.select({ id: mediaReferences.id }).from(mediaReferences)
+      .where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.objectKey, image.publicUrl)))
+      .limit(1);
+    await tx.update(productImageObjects)
+      .set({ unreferencedAt: reference ? null : new Date() })
+      .where(and(eq(productImageObjects.tenantId, tenantId), eq(productImageObjects.objectPath, image.objectPath)));
   }
 }
 
@@ -204,6 +245,8 @@ export async function createProduct(input: unknown): Promise<string> {
         handle: parsed.handle,
         title: parsed.title,
         description: parsed.description,
+        audience: parsed.audience,
+        garmentType: parsed.garmentType,
         status: "draft",
       })
       .returning({ id: products.id });
@@ -233,7 +276,9 @@ export async function updateProduct(input: unknown): Promise<string> {
   const parsed = productFormSchema.parse(input);
   if (!parsed.id) throw new ProductNotFoundError("(missing id)");
   const productId = parsed.id;
-  const actor = await authorizeForStatus(parsed.status);
+  // Editing the content of an already-published product is still an editor
+  // operation. A status transition additionally needs publisher authority.
+  const actor = await requireAdminPrincipal(PRODUCT_EDITOR_ROLES);
   const { db } = adminDatabase();
 
   await db.transaction(async (tx) => {
@@ -245,12 +290,18 @@ export async function updateProduct(input: unknown): Promise<string> {
       .for("update");
     if (!current) throw new ProductNotFoundError(productId);
 
+    if (current.status !== parsed.status && !canTransitionProductStatus(current.status, parsed.status, actor.membership.role)) {
+      throw new InvalidProductTransitionError(current.status, parsed.status);
+    }
+
     await tx
       .update(products)
       .set({
         handle: parsed.handle,
         title: parsed.title,
         description: parsed.description,
+        audience: parsed.audience,
+        garmentType: parsed.garmentType,
         status: parsed.status,
         updatedAt: new Date(),
       })
@@ -283,6 +334,15 @@ export async function setProductStatus(productId: string, status: ProductStatus)
       .limit(1)
       .for("update");
     if (!current) throw new ProductNotFoundError(productId);
+
+    if (!canTransitionProductStatus(current.status, status, actor.membership.role)) {
+      throw new InvalidProductTransitionError(current.status, status);
+    }
+    if (status === "published") {
+      const images = await tx.select({ altText: mediaReferences.altText }).from(mediaReferences)
+        .where(and(eq(mediaReferences.tenantId, actor.tenantId), eq(mediaReferences.productId, productId), eq(mediaReferences.status, "active")));
+      if (hasImageWithoutAltText(images)) throw new MissingProductImageAltTextError();
+    }
 
     await tx
       .update(products)

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 
 import { fuzzyMatches } from "@/features/catalog/fuzzy";
 
@@ -50,6 +50,8 @@ async function readCatalog<T>(read: () => Promise<T>, fromSeed: () => T): Promis
 
 const DEFAULT_CATALOG_FILTERS: CatalogFilters = {
   q: "",
+  audiences: [],
+  garmentTypes: [],
   sizes: [],
   colors: [],
   sort: "featured",
@@ -106,6 +108,8 @@ export function filterPublishedProducts(
 ): readonly CatalogProduct[] {
   return products
     .filter((product) => matchesCatalogQuery(product, filters.q)
+      && (filters.audiences.length === 0 || (product.audience != null && filters.audiences.includes(product.audience)))
+      && (filters.garmentTypes.length === 0 || (product.garmentType != null && filters.garmentTypes.includes(product.garmentType)))
       && matchesSelectedVariant(product, filters)
       && matchesCatalogPrice(product, filters.maxPrice)
       && (!filters.inStockOnly || product.variants.some(isVariantPurchasable)))
@@ -128,8 +132,8 @@ function compareCatalogSizes(left: string, right: string): number {
 }
 
 /**
- * Derives the filter rail's options from the published catalog rather than a
- * hardcoded list, so the rail can never offer a value nothing is tagged with.
+ * Keep the approved category taxonomy visible even while products are being
+ * classified; derive size, colour and price options from published products.
  */
 export function catalogFacets(products: readonly CatalogProduct[]): CatalogFacets {
   const sizes = new Map<string, string>();
@@ -149,6 +153,8 @@ export function catalogFacets(products: readonly CatalogProduct[]): CatalogFacet
   const min = prices.length ? Math.min(...prices) : 0;
   const max = prices.length ? Math.max(...prices) : 0;
   return {
+    audiences: ["male", "female", "unisex"],
+    garmentTypes: ["tops", "bottoms"],
     sizes: [...sizes.values()].toSorted(compareCatalogSizes),
     colors: [...colors.values()].toSorted((left, right) => catalogTextCollator.compare(left, right)),
     priceBounds: min < max ? { min, max } : null,
@@ -222,7 +228,8 @@ async function readPublishedProduct(
 
   const [variants, media] = await Promise.all([
     db.select().from(productVariants).where(and(eq(productVariants.tenantId, tenantId), eq(productVariants.productId, product.id))),
-    db.select().from(mediaReferences).where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.productId, product.id), eq(mediaReferences.status, "active"))),
+    db.select().from(mediaReferences).where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.productId, product.id), eq(mediaReferences.status, "active")))
+      .orderBy(asc(mediaReferences.sortOrder), asc(mediaReferences.createdAt)),
   ]);
 
   return {
@@ -230,6 +237,8 @@ async function readPublishedProduct(
     handle: product.handle,
     title: product.title,
     description: product.description,
+    audience: product.audience,
+    garmentType: product.garmentType,
     status: "published",
     // Database stores minor units. Currency formatting belongs to the UI boundary.
     priceAmount: variants[0]?.priceAmount ?? 0,

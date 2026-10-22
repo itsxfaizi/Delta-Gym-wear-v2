@@ -1,0 +1,13 @@
+.promo-manager, .promo-existing { display: grid; gap: var(--space-6); }
+.promo-manager > section > h2 { margin-block: 0 var(--space-4); }
+.promo-form { display: grid; gap: var(--space-4); }
+.promo-form-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--space-2); }
+.promo-form-heading h2 { margin: 0; }
+.promo-form-heading span, .promo-message { color: var(--color-ink-soft); font-size: .8125rem; }
+.promo-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr)); gap: var(--space-4); }
+.promo-message { margin: 0; }
+.checkout-promo-entry { display: flex; gap: var(--space-2); }
+.checkout-promo-entry input { flex: 1; min-inline-size: 0; }
+.checkout-promo-entry button { border: 1px solid var(--color-ink); background: var(--color-ink); color: var(--color-surface); padding-inline: var(--space-4); font: inherit; cursor: pointer; }
+.checkout-promo-entry button:disabled { opacity: .5; cursor: wait; }
+.checkout-promo-entry button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }

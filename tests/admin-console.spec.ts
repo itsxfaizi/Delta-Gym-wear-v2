@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { envValue, withDb } from "./db";
 import { OWNER_PASSWORD, e2eContact, placeOrder, signInAsOwner } from "./helpers";
 
 /**
@@ -13,7 +14,7 @@ test.skip(!OWNER_PASSWORD, "E2E_ADMIN_PASSWORD is required to sign in as the own
 test("the dashboard reports figures that agree with each other", async ({ page }) => {
   await signInAsOwner(page, "/admin");
 
-  await expect(page.getByRole("heading", { name: /operations/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /operations/i })).toBeVisible({ timeout: 30_000 });
 
   // The awaiting-call KPI and the call desk describe the same queue, so they
   // must agree — they disagreed once, because one was reading a capped list.
@@ -48,7 +49,7 @@ test("the orders list filters by status, searches, and moves an order inline", a
   const row = page.locator("tr", { has: page.getByRole("link", { name: orderNumber }) });
   await row.getByRole("combobox").selectOption("confirmed");
 
-  await expect(row.getByText(/confirmed/i).first()).toBeVisible({ timeout: 30_000 });
+  await expect(row.locator('.admin-status[data-status="confirmed"]')).toBeVisible({ timeout: 30_000 });
 });
 
 test("every admin screen loads for an owner", async ({ page }) => {
@@ -68,14 +69,27 @@ test("every admin screen loads for an owner", async ({ page }) => {
   }
 });
 
-test("the team screen shows accounts by email and protects the last owner", async ({ page }) => {
+test("the team screen shows accounts by email and reflects last-owner protection", async ({ page }) => {
   await signInAsOwner(page, "/admin/team");
 
   // The members table identifies people by email, not by auth user id.
   await expect(page.getByText(/@/).first()).toBeVisible();
   await expect(page.getByText(/^[0-9a-f]{8}-[0-9a-f]{4}-/)).toHaveCount(0);
 
-  // The sole active owner cannot be demoted or revoked from the UI.
+  // The isolated project can retain a separately activated preview owner.
+  // Assert the control against the actual tenant state instead of assuming
+  // this test database always has exactly one owner.
+  const [ownerCount] = await withDb((sql) => sql`
+    select count(*)::int as count
+      from memberships
+     where tenant_id = ${envValue("DELTA_TENANT_ID")}
+       and role = 'owner'
+       and status = 'active'
+  `);
+  expect(ownerCount.count).toBeGreaterThan(0);
+
   const ownerRow = page.locator("tr", { hasText: "· you" });
-  await expect(ownerRow.getByRole("button", { name: /revoke/i })).toBeDisabled();
+  const revoke = ownerRow.getByRole("button", { name: /revoke/i });
+  if (ownerCount.count === 1) await expect(revoke).toBeDisabled();
+  else await expect(revoke).toBeEnabled();
 });

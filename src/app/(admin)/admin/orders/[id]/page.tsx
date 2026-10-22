@@ -9,6 +9,8 @@ import { OrderTimeline } from "@/components/admin/order-timeline";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { formatMoney } from "@/lib/money";
 import { getOrderOps } from "@/server/ops/order-ops";
+import { requireAdminPrincipal } from "@/server/admin/guard";
+import { ADMIN_ROLES } from "@/features/admin/schemas";
 import { OrdersDatabaseUnavailableError, getOrderById } from "@/server/orders/queries";
 
 import "../../../../../styles/admin-ops.css";
@@ -22,6 +24,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 
 export default async function AdminOrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdminPrincipal(ADMIN_ROLES);
   const { id } = await params;
   const loaded = await getOrderById(id).then(
     (found) => ({ order: found, databaseUnavailable: false }),
@@ -216,6 +219,10 @@ export default async function AdminOrderDetailPage({ params }: { params: Promise
                 {money(order.subtotalAmount)}
               </td>
             </tr>
+            {order.discountAmount > 0 ? <tr>
+              <th colSpan={4} scope="row">Promo code {order.promoCode ? `(${order.promoCode})` : ""}</th>
+              <td className="admin-num" data-label="Discount">−{money(order.discountAmount)}</td>
+            </tr> : null}
             <tr>
               <th colSpan={4} scope="row">
                 Shipping

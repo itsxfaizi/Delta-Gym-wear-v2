@@ -327,8 +327,40 @@
 }
 
 @media (max-width: 30rem) {
+  .admin-bar {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 36px;
+    gap: var(--space-2);
+    padding-inline: var(--space-4);
+  }
+
+  .admin-menu-button {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
   .admin-bar-title {
     display: none;
+  }
+
+  .admin-search {
+    grid-column: 2;
+    grid-row: 1;
+    inline-size: 100%;
+    max-inline-size: none;
+    padding-inline: var(--space-2);
+  }
+
+  .admin-live-pill {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+    margin-inline-start: 0;
+  }
+
+  .admin-avatar {
+    grid-column: 3;
+    grid-row: 1;
   }
 
   .admin-search input::placeholder {

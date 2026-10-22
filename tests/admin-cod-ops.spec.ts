@@ -1,24 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-import { placeOrder } from "./helpers";
+import { OWNER_PASSWORD, e2eContact, placeOrder, signInAsOwner } from "./helpers";
 
 /**
  * The operator's half of the story, against the live database: sign in as a real
  * owner (no dev bypass), find an order, and walk it through the COD lifecycle.
  */
-const OWNER_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "admin@deltagymwear.com";
-const OWNER_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
-
 test.skip(!OWNER_PASSWORD, "E2E_ADMIN_PASSWORD is required to sign in as the owner");
 
 test("an owner signs in and moves an order through the COD flow", async ({ page }) => {
   // Its own fresh order, so the spec does not depend on what earlier runs left behind.
-  const orderNumber = await placeOrder(page, { email: "e2e.ops@deltagymwear.com", phone: "03005559876" });
+  const orderNumber = await placeOrder(page, { ...e2eContact("cod-ops"), phone: "03005559876" });
 
-  await page.goto("/login?next=/admin/orders");
-  await page.getByLabel("Email").fill(OWNER_EMAIL);
-  await page.getByLabel("Password").fill(OWNER_PASSWORD);
-  await page.getByRole("button", { name: /sign in/i }).click();
+  await signInAsOwner(page, "/admin/orders");
 
   // A real session, not the removed development bypass.
   await expect(page).toHaveURL(/\/admin\/orders/, { timeout: 60_000 });

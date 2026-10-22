@@ -72,6 +72,8 @@ describe("catalog read contracts", () => {
       }),
     ).toEqual({
       q: "training",
+      audiences: [],
+      garmentTypes: [],
       sizes: ["m", "s"],
       colors: ["black", "sand"],
       sort: "price-desc",
@@ -87,6 +89,8 @@ describe("catalog read contracts", () => {
       }),
     ).toEqual({
       q: "first",
+      audiences: [],
+      garmentTypes: [],
       sizes: [],
       colors: [],
       sort: "featured",
@@ -100,6 +104,18 @@ describe("catalog read contracts", () => {
     expect(filterPublishedProducts(products, filters).map((product) => product.handle)).toEqual([
       "bravo-training-short",
     ]);
+  });
+
+  it("keeps audience and garment type as independent filters", () => {
+    const classified = products.map((product, index) => ({
+      ...product,
+      audience: index === 0 ? "male" as const : index === 1 ? "unisex" as const : null,
+      garmentType: index === 0 ? "tops" as const : index === 1 ? "bottoms" as const : null,
+    }));
+    expect(filterPublishedProducts(classified, parseCatalogSearchParams({ audience: "male", garmentType: "tops" })).map((item) => item.handle))
+      .toEqual(["alpha-training-top"]);
+    expect(filterPublishedProducts(classified, parseCatalogSearchParams({ audience: "unisex", garmentType: "tops" }))).toEqual([]);
+    expect(parseCatalogSearchParams({ audience: "unknown", garmentType: "hats" })).toMatchObject({ audiences: [], garmentTypes: [] });
   });
 
   it("filters query text and applies deterministic sort tie breakers", () => {
@@ -152,8 +168,10 @@ describe("catalog read contracts", () => {
     ).toEqual(["alpha-training-top", "bravo-training-short"]);
   });
 
-  it("derives filter facets from the published catalog only", () => {
+  it("shows fixed category filters and derives size, colour and price facets from the catalog", () => {
     expect(catalogFacets(products)).toEqual({
+      audiences: ["male", "female", "unisex"],
+      garmentTypes: ["tops", "bottoms"],
       sizes: ["S", "M", "L"],
       colors: ["Black", "Sand"],
       priceBounds: { min: 4000, max: 6000 },

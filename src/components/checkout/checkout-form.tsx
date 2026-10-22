@@ -3,11 +3,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useEffect, useState } from "react";
+import { useForm, useWatch } from "react-hook-form";
 import type { z } from "zod";
+import "@/styles/promotions.css";
 
-import { placeOrderAction } from "@/app/(store)/checkout/actions";
+import { placeOrderAction, previewPromotionAction } from "@/app/(store)/checkout/actions";
 import { CheckoutField } from "@/components/checkout/checkout-field";
 import { CheckoutSignInPrompt } from "@/components/checkout/checkout-sign-in-prompt";
 import { useCart, useStorefrontAccount } from "@/components/storefront/storefront-shell";
@@ -23,6 +24,7 @@ export const EMPTY_CHECKOUT: CheckoutPrefill = {
   contactEmail: "",
   contactPhone: "",
   notes: "",
+  promoCode: "",
   shippingAddress: {
     fullName: "",
     phone: "",
@@ -47,6 +49,8 @@ function storedCartIsEmpty(): boolean {
 }
 
 export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
+  const [promoPreview, setPromoPreview] = useState<Awaited<ReturnType<typeof previewPromotionAction>> | null>(null);
+  const [promoBusy, setPromoBusy] = useState(false);
   const router = useRouter();
   const { lines } = useCart();
   const account = useStorefrontAccount();
@@ -55,6 +59,8 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
     handleSubmit,
     setValue,
     setError,
+    getValues,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<CheckoutFormValues, unknown, CheckoutInput>({
     resolver: zodResolver(checkoutInputSchema),
@@ -76,6 +82,24 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
   const totals = calculateOrderTotals(
     lines.map((line) => ({ unitPriceAmount: line.variant.priceAmount, quantity: line.quantity })),
   );
+  const enteredCode = useWatch({ control, name: "promoCode" })?.trim().toUpperCase() ?? "";
+  const appliedPreview = promoPreview?.ok && promoPreview.code === enteredCode &&
+    promoPreview.subtotalAmount === totals.subtotalAmount ? promoPreview : null;
+
+  async function applyPromotion() {
+    setPromoBusy(true);
+    try {
+      const result = await previewPromotionAction({
+        promoCode: getValues("promoCode"),
+        lines: getValues("lines"),
+      });
+      setPromoPreview(result);
+    } catch {
+      setPromoPreview({ ok: false, message: "The promo code could not be checked. Try again." });
+    } finally {
+      setPromoBusy(false);
+    }
+  }
 
   async function onSubmit(values: CheckoutInput) {
     // A successful action redirects, so anything returned here is a failure.
@@ -205,11 +229,26 @@ export function CheckoutForm({ prefill }: { prefill: CheckoutPrefill }) {
               {totals.shippingAmount === 0 ? "Free" : formatMoney(totals.shippingAmount, ORDER_PRICING.currency)}
             </dd>
           </div>
+          {appliedPreview ? <div><dt>Promo {appliedPreview.code}</dt><dd>−{formatMoney(appliedPreview.discountAmount, ORDER_PRICING.currency)}</dd></div> : null}
           <div className="checkout-total">
             <dt>Total</dt>
-            <dd>{formatMoney(totals.totalAmount, ORDER_PRICING.currency)}</dd>
+            <dd>{formatMoney(appliedPreview?.totalAmount ?? totals.totalAmount, ORDER_PRICING.currency)}</dd>
           </div>
         </dl>
+        <div className="checkout-promo checkout-field">
+          <label htmlFor="checkout-promo-code">Promo code</label>
+          <div className="checkout-promo-entry">
+            <input id="checkout-promo-code" autoComplete="off" {...register("promoCode")}
+              aria-invalid={errors.promoCode ? "true" : "false"}
+              aria-describedby={errors.promoCode ? "checkout-promo-error" : undefined} />
+            <button type="button" onClick={applyPromotion} disabled={promoBusy || !enteredCode || lines.length === 0}>
+              {promoBusy ? "Checking…" : "Apply"}
+            </button>
+          </div>
+          {errors.promoCode ? <p id="checkout-promo-error" className="checkout-field-error">{errors.promoCode.message}</p> : null}
+          {promoPreview && !promoPreview.ok ? <p className="checkout-field-error" role="status">{promoPreview.message}</p> : null}
+          {appliedPreview ? <p role="status">Discount preview. Eligibility is checked again when you place the order.</p> : null}
+        </div>
         <p className="checkout-payment-note">
           Payment method: cash on delivery. Pay the courier when your order arrives.
         </p>

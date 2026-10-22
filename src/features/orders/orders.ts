@@ -14,6 +14,7 @@ export type ShippingRule = {
 
 export type OrderTotals = {
   subtotalAmount: number;
+  discountAmount: number;
   shippingAmount: number;
   totalAmount: number;
 };
@@ -23,14 +24,18 @@ export type PricedLine = Pick<CartLineSnapshot, "unitPriceAmount" | "quantity">;
 export function calculateOrderTotals(
   lines: readonly PricedLine[],
   shippingRule: ShippingRule = ORDER_PRICING,
+  discountAmount = 0,
 ): OrderTotals {
   const subtotalAmount = lines.reduce((total, line) => total + line.unitPriceAmount * line.quantity, 0);
+  if (!Number.isSafeInteger(discountAmount) || discountAmount < 0 || discountAmount > subtotalAmount) {
+    throw new RangeError("Discount must be between zero and the merchandise subtotal.");
+  }
   const shippingAmount =
     subtotalAmount === 0 || subtotalAmount >= shippingRule.freeShippingThresholdAmount
       ? 0
       : shippingRule.flatShippingAmount;
 
-  return { subtotalAmount, shippingAmount, totalAmount: subtotalAmount + shippingAmount };
+  return { subtotalAmount, discountAmount, shippingAmount, totalAmount: subtotalAmount - discountAmount + shippingAmount };
 }
 
 export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
