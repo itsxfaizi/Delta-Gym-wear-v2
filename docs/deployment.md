@@ -17,6 +17,18 @@ Migration 0005 closes direct public database access and hardens staff authorizat
 
 Use an ignored `.env.e2e.local` containing isolated `DATABASE_URL`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `DELTA_TENANT_ID`, `E2E_ISOLATED_SUPABASE_PROJECT_REF`, `E2E_ALLOW_DESTRUCTIVE=isolated-project-only`, `E2E_ADMIN_EMAIL`, `E2E_ADMIN_PASSWORD`, and `E2E_ADMIN_TOTP_SECRET`. Keep test secrets local. The owner email must use `@e2e.deltagymwear.test`; the password must be at least 12 characters. The global setup verifies database/API keys and tenant before creating or reusing a confirmed test owner, owner membership, and deterministic catalog fixtures. Configure the owner's TOTP in the isolated project; owner setup tests capture no traces. Never substitute production credentials: target guards reject the known production ref, and cleanup only targets test markers. Run the suite through `npm run test:e2e:isolated`, which loads that explicit file. Existing dev servers are never reused. Login, MFA, invite acceptance, product save/edit, rupee prices, category filters, promo redemption, image upload and negative authorization must pass before promotion.
 
+### Manual testing preview MFA exception
+
+The `codex/feedback-expansion` Preview branch may temporarily allow AAL1 only
+when `DELTA_PREVIEW_MFA_DISABLED=true` and
+`DELTA_PREVIEW_MFA_DISABLED_SUPABASE_REF=<isolated-test-project-ref>` are set
+for that exact branch. The server also verifies the Vercel Preview environment,
+exact Git branch, Vercel deployment hostname, and matching non-production
+Supabase project URL. Keep these variables unset in Production and all other
+environments. The isolated automated suite must continue to verify normal MFA
+enrollment and denial behavior. Remove the two branch-scoped variables after
+manual testing.
+
 ### Daily retention jobs
 
 Configure a random server-only `CRON_SECRET` of at least 16 characters in the intended Vercel environment after migrations 0006 and 0007. `vercel.json` schedules `/api/cron/product-image-retention` at 04:00 UTC and `/api/cron/audit-retention` at 04:15 UTC daily. Both endpoints require `Authorization: Bearer <CRON_SECRET>`. Use `?dryRun=1` to inspect eligibility without deletion; never put the bearer value in URLs or logs. Run authorized dry-run checks after deployment, then verify scheduled jobs in Vercel logs. Keep scheduled deletion disabled if schema, auth, or object reference checks fail. Rollback app code without dropping tables or rewriting immutable audit history.

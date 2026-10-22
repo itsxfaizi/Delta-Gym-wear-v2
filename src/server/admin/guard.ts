@@ -9,6 +9,7 @@ import { requireTenantRole, type AuthenticatedPrincipal, type TenantRole } from 
 import { createDatabase } from "@/server/db";
 import { memberships } from "@/server/db/schema";
 import { getCatalogTenantId } from "@/server/env";
+import { isMfaDisabledForIsolatedPreview } from "./preview-mfa";
 
 export type AdminAccess =
   | { state: "unauthenticated" }
@@ -43,6 +44,8 @@ export async function resolveAdminAccess(): Promise<AdminAccess> {
   if (!membership) return { state: "forbidden" };
 
   const principal: AuthenticatedPrincipal = { userId: user.id, tenantId, membership };
+
+  if (isMfaDisabledForIsolatedPreview()) return { state: "granted", principal };
 
   try {
     requireTenantRole(principal, ADMIN_ROLES);
