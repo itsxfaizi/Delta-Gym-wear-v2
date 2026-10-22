@@ -101,3 +101,16 @@ UI quality, design fidelity, and interaction/motion quality are the primary prod
 - Role 07 writes the PR description from verified evidence only.
 
 **Gate:** All blocking findings are resolved or formally deferred with owner and reason.
+
+## Current milestone: order confirmations via Resend SMTP
+
+**Status:** Code and documentation implemented; Resend sender-domain setup, credentials, and delivery verification remain deployment gates.
+
+1. Keep the existing `Mailer` interface and add a server-only Nodemailer SMTP adapter. Continue supporting the HTTP adapter and the console-only development fallback.
+2. Configure authenticated TLS with port 465 (or required STARTTLS on 587), finite connect/greeting/socket timeouts, and no file/URL loading from message content. Fail visibly when SMTP is selected but incomplete.
+3. Verify provider selection, SMTP settings, plain-text/HTML mapping, and provider rejection handling with focused tests.
+4. Add deployment instructions and an ADR. Keep secrets out of source and browser bundles.
+5. Add a dedicated sending subdomain to Resend, verify its DNS records, create a send-only key scoped to that domain, and store it in Vercel production environment variables.
+6. Send one controlled test confirmation to an authorized test address, verify it in Resend, then deploy and confirm an order confirmation is accepted by the provider.
+
+**Release gates:** A verified sending domain, a scoped API key stored as `MAIL_SMTP_PASS`, a verified `MAIL_FROM`, and an end-to-end delivery confirmation. Do not enable email invitation delivery as part of this milestone; it has its own readiness gate.

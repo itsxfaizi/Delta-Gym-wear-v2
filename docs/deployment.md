@@ -55,7 +55,7 @@ each value comes from.
 | `NEXT_PUBLIC_SITE_URL` | Yes in practice | Same as `APP_URL`. Defaults to `http://localhost:3000` in code (`src/app/layout.tsx`, `src/lib/structured-data.ts`) if unset — that default is wrong in production (breaks `metadataBase`, canonical URLs, and JSON-LD), so always set it explicitly. |
 | `LOG_LEVEL` | No | Pick `info` or `warn` for production; defaults to `info` if unset |
 | `NEXT_PUBLIC_APP_NAME` | No | Defaults to "Delta Gym Wear" |
-| `MAIL_PROVIDER`, `MAIL_API_KEY`, `MAIL_FROM`, `MAIL_API_URL` | No | Only needed to actually send order-confirmation email. Without them the app runs the console mail transport (`src/server/mail/console-mailer.ts`), which logs the email and sends nothing — fine for a soft launch, not fine if customers are expected to receive confirmation email. `MAIL_API_KEY`/`MAIL_FROM` come from your mail provider (e.g. Resend); `MAIL_PROVIDER=http` turns the real transport on. |
+| `MAIL_PROVIDER`, `MAIL_SMTP_HOST`, `MAIL_SMTP_PORT`, `MAIL_SMTP_USER`, `MAIL_SMTP_PASS`, `MAIL_FROM` | No | Set `MAIL_PROVIDER=smtp` to send order confirmations through Resend SMTP. Use `smtp.resend.com`, port `465`, user `resend`, the Resend API key as `MAIL_SMTP_PASS`, and a verified `MAIL_FROM` sender. Keep every value server-only. Selecting SMTP without complete settings fails visibly instead of silently falling back to console. `MAIL_PROVIDER=http` with `MAIL_API_KEY` remains supported as an HTTP alternative; unset provider uses console logging and sends no email. |
 | `DELTA_DEV_ADMIN` | **Do not set** | The bypass has been removed. Remove any stale value from every deployment environment — see §4. |
 
 ## 2. Supabase dashboard settings that must match
@@ -170,6 +170,7 @@ Run through this against the production URL after each deploy:
    (no auth header) — it should return zero rows or a permission error, not order
    data. If it returns rows, RLS is not correctly applied; stop and re-run
    `scripts/enable-rls-and-realtime.mjs`.
-9. Confirm `MAIL_PROVIDER` is intentionally set or intentionally unset — check
-   whether order-confirmation emails are actually expected to arrive in this
-   environment, or whether the console-only transport is acceptable for now.
+9. If customer confirmations must be delivered, verify the sender domain in
+   Resend, configure the server-only SMTP values, then submit a test order to an
+   authorized test address and confirm delivery in Resend. Without SMTP or HTTP
+   provider configuration, the application logs emails to the console only.
