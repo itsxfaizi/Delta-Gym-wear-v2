@@ -10,6 +10,7 @@ export const ADMIN_LINKS = [
   { href: "/admin/promotions", label: "Promo codes" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/team", label: "Team" },
+  { href: "/admin/audit", label: "Audit log", ownerOnly: true },
 ] as const;
 
 export function isCurrentAdminLink(href: string, pathname: string): boolean {
@@ -22,12 +23,13 @@ export function adminSectionTitle(pathname: string): string {
   return match?.label ?? "Admin";
 }
 
-export function AdminNav({ onNavigate }: { onNavigate?: () => void }) {
+export function AdminNav({ onNavigate, role }: { onNavigate?: () => void; role?: string }) {
   const pathname = usePathname();
+  const links = ADMIN_LINKS.filter((link) => !("ownerOnly" in link) || role === "owner");
 
   return (
     <nav className="admin-nav" aria-label="Admin">
-      {ADMIN_LINKS.map(({ href, label }) => (
+      {links.map(({ href, label }) => (
         <Link
           key={href}
           href={href}

@@ -8,6 +8,8 @@ import {
 } from "@/features/admin/customers";
 import { resolveCodStatuses } from "@/server/ops/order-ops";
 import { OrdersDatabaseUnavailableError, listOrders } from "@/server/orders/queries";
+import { ADMIN_ROLES } from "@/features/admin/schemas";
+import { requireAdminPrincipal } from "./guard";
 
 /**
  * ponytail: customers are derived from the most recent orders, not a customers
@@ -18,6 +20,7 @@ const CUSTOMER_ORDER_WINDOW = 100;
 
 /** Admin reads degrade to empty without a database, like the rest of /admin. */
 async function recentOrders(): Promise<CustomerOrderInput[]> {
+  await requireAdminPrincipal(ADMIN_ROLES);
   try {
     const { orders } = await listOrders({ limit: CUSTOMER_ORDER_WINDOW });
     // Without the overlay every refused/returned count is permanently zero, which

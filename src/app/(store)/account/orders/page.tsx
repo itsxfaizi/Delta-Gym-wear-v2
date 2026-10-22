@@ -36,7 +36,7 @@ export default async function AccountOrdersPage() {
           {orders.map((order, index) => (
             <li className="order-card" key={order.id}>
               {/* A real anchor: the whole card is keyboard-reachable and openable in a new tab. */}
-              <Link className="order-card-link" href={`/orders/${order.orderNumber}`}>
+              <Link className="order-card-link" href={`/orders/${order.orderNumber}`} aria-label={`View receipt for order ${order.orderNumber}`}>
                 <header className="order-card-header">
                   <p className="order-number">
                     <span className="sr-only">View receipt for order </span>

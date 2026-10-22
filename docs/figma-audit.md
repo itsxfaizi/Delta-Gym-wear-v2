@@ -350,3 +350,13 @@ Source: "Document for Delta Adjustment.pdf" and the "Delta Landing Page Copy" do
 The owner approved extending the existing Delta admin visual system for promo codes, email-based staff invitations, and product photo uploads. The Figma source has no admin frames. These controls use the established admin form, table, focus, and status patterns rather than claiming a Figma match. The product editor now labels prices in PKR rupees while retaining paisa as the storage unit.
 
 The public catalog source frame [10](https://www.figma.com/design/6zqT0W5qCdhBpVEGEu6G3i/Delta?node-id=200-758) has a gender filter and a `Tops` category tab but does not show the exact two-axis classification the owner requested. The storefront adds separate Audience (Male, Female, Unisex) and Garment type (Tops, Bottoms) filters using the current filter rail's visual style. Existing unclassified products remain visible in All until staff categorizes them. No new icon or image asset was invented.
+
+The owner approved extending the existing Delta admin style for the owner-only audit log. The source file has no admin frames. `/admin/audit` uses the current admin table, metadata, and empty-state patterns; it is restricted to the owner role and AAL2 sessions and omits before/after JSON from the rendered view.
+
+### Staff invite redirect bridge (2026-10-22)
+
+The default-template `/auth/invite` landing reuses the approved existing auth shell, heading, status and link styles. It adds a verification/loading message and an accessible invalid-invitation error state under the user-approved admin/auth extension; no new design system or Admin Guide surface. The URL fragment is removed before asynchronous verification.
+
+### Staff invitation link controls (2026-10-22)
+
+The existing owner-only Team invitation form now offers a primary Create invitation link action and a separate email action. The generated link appears only in component memory in a labeled read-only field with Copy link, Dismiss link, and private-sharing instructions. Starting another invitation clears the previous link. This approved admin-style extension reuses the established form fields, buttons, inline errors and status announcements; there is no new Figma frame or visual asset.

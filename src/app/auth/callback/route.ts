@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { safeNextPath } from "@/features/account/schemas";
 import { createSupabaseServerClient } from "@/server/auth/supabase";
-import { activateInvitedMembership } from "@/server/admin/team";
+import { hasInvitedMembership } from "@/server/admin/team";
 
 /**
  * Consumes the one-time code from a Supabase confirmation or recovery email and
@@ -35,14 +35,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       return NextResponse.redirect(new URL("/login?error=link", request.url));
     }
     try {
-      const activated = await activateInvitedMembership(user.id);
-      if (!activated) {
+      const invited = await hasInvitedMembership(user.id);
+      if (!invited) {
         return NextResponse.redirect(new URL("/login?error=invite", request.url));
       }
-    } catch (activationError) {
-      console.error("auth callback: invite activation failed", activationError);
+    } catch (lookupError) {
+      console.error("auth callback: invite lookup failed", lookupError);
       return NextResponse.redirect(new URL("/login?error=invite", request.url));
     }
+    // Never follow an invite link directly into /admin. The verified session
+    // may only complete onboarding by choosing a password first.
+    return NextResponse.redirect(new URL("/reset-password?next=/admin", request.url));
   }
 
   return NextResponse.redirect(new URL(next, request.url));

@@ -159,6 +159,24 @@ export const mediaReferences = pgTable(
   ],
 );
 
+/** Storage objects issued by this app, including uploads never attached to a product. */
+export const productImageObjects = pgTable(
+  "product_image_objects",
+  {
+    tenantId: uuid("tenant_id").notNull().references(() => tenants.id, { onDelete: "restrict" }),
+    objectPath: text("object_path").notNull(),
+    publicUrl: text("public_url").notNull(),
+    unreferencedAt: timestamp("unreferenced_at", { withTimezone: true }).defaultNow(),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    primaryKey({ name: "product_image_objects_pkey", columns: [table.tenantId, table.objectPath] }),
+    unique("product_image_objects_tenant_public_url_unique").on(table.tenantId, table.publicUrl),
+    index("product_image_objects_due_idx").on(table.unreferencedAt),
+  ],
+);
+
 export const productRevisions = pgTable(
   "product_revisions",
   {
@@ -462,6 +480,7 @@ export type Membership = typeof memberships.$inferSelect;
 export type Product = typeof products.$inferSelect;
 export type ProductVariant = typeof productVariants.$inferSelect;
 export type MediaReference = typeof mediaReferences.$inferSelect;
+export type ProductImageObject = typeof productImageObjects.$inferSelect;
 export type ProductRevision = typeof productRevisions.$inferSelect;
 export type AuditEvent = typeof auditEvents.$inferSelect;
 export type Customer = typeof customers.$inferSelect;
@@ -484,6 +503,7 @@ export const schema = {
   products,
   productVariants,
   mediaReferences,
+  productImageObjects,
   productRevisions,
   auditEvents,
   customers,

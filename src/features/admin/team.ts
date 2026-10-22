@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { ADMIN_ROLES } from "./schemas";
 
-export const MEMBERSHIP_STATUSES = ["invited", "active", "suspended"] as const;
+export const MEMBERSHIP_STATUSES = ["invited", "active", "suspended", "cancelled"] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
 export const inviteMemberSchema = z.object({

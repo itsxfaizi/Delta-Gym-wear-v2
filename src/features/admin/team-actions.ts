@@ -2,6 +2,8 @@
 
 import {
   inviteTeamMember,
+  createTeamInvitationLink,
+  type TeamInvitationResult,
   changeMemberRole as changeMemberRoleOnServer,
   setMemberStatus as setMemberStatusOnServer,
 } from "@/server/admin/team";
@@ -15,6 +17,10 @@ import type { ActionResult } from "./schemas";
  */
 export async function inviteMemberAction(rawInput: unknown): Promise<ActionResult> {
   return inviteTeamMember(rawInput);
+}
+
+export async function createInvitationLinkAction(rawInput: unknown): Promise<TeamInvitationResult> {
+  return createTeamInvitationLink(rawInput);
 }
 
 export async function changeMemberRoleAction(rawInput: unknown): Promise<ActionResult> {

@@ -4,6 +4,7 @@ import { and, eq } from "drizzle-orm";
 
 import { ADMIN_ROLES } from "@/features/admin/schemas";
 import { getAuthenticatedUser } from "@/server/auth/session";
+import { createSupabaseServerClient } from "@/server/auth/supabase";
 import { requireTenantRole, type AuthenticatedPrincipal, type TenantRole } from "@/server/authorization";
 import { createDatabase } from "@/server/db";
 import { memberships } from "@/server/db/schema";
@@ -12,6 +13,7 @@ import { getCatalogTenantId } from "@/server/env";
 export type AdminAccess =
   | { state: "unauthenticated" }
   | { state: "forbidden" }
+  | { state: "mfa_required"; principal: AuthenticatedPrincipal }
   | { state: "granted"; principal: AuthenticatedPrincipal };
 
 /**
@@ -43,10 +45,24 @@ export async function resolveAdminAccess(): Promise<AdminAccess> {
   const principal: AuthenticatedPrincipal = { userId: user.id, tenantId, membership };
 
   try {
-    return { state: "granted", principal: requireTenantRole(principal, ADMIN_ROLES) };
+    requireTenantRole(principal, ADMIN_ROLES);
   } catch {
     return { state: "forbidden" };
   }
+
+  // The membership check alone must never make an admin session usable. Pass
+  // the access token to Auth so AAL is validated remotely, not inferred from
+  // an unverified client cookie. Any Auth error closes the gate.
+  const supabase = await createSupabaseServerClient();
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session?.access_token) return { state: "forbidden" };
+  const { data: assurance, error: assuranceError } = await supabase.auth.mfa
+    .getAuthenticatorAssuranceLevel(sessionData.session.access_token);
+  if (assuranceError || !assurance) return { state: "forbidden" };
+
+  return assurance.currentLevel === "aal2"
+    ? { state: "granted", principal }
+    : { state: "mfa_required", principal };
 }
 
 /** Server-action entry point: throws AuthorizationError unless the role fits. */

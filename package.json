@@ -11,6 +11,7 @@
     "test": "jest --runInBand",
     "test:watch": "jest --watch",
     "test:e2e": "playwright test",
+    "test:e2e:isolated": "node --env-file=.env.e2e.local ./node_modules/@playwright/test/cli.js test",
     "db:check": "drizzle-kit check"
   },
   "dependencies": {

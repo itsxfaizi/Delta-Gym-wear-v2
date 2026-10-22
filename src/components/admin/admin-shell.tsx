@@ -41,7 +41,7 @@ export function AdminShell({
           <span className="admin-brand-mark">Delta</span>
           <span className="admin-brand-sub">Ops console</span>
         </Link>
-        <AdminNav />
+        <AdminNav role={role} />
         <p className="admin-sidebar-foot">Figures exclude cancelled, refused and returned orders.</p>
       </aside>
 
@@ -55,7 +55,7 @@ export function AdminShell({
               <SheetHeader>
                 <SheetTitle>Delta admin</SheetTitle>
               </SheetHeader>
-              <AdminNav onNavigate={() => setMenuOpen(false)} />
+              <AdminNav role={role} onNavigate={() => setMenuOpen(false)} />
             </SheetContent>
           </Sheet>
 

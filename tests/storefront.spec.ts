@@ -1,10 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-test("home follows the prototype sequence and leads to the catalog", async ({ page }) => {
+test("home follows the landing sequence and leads to the catalog", async ({ page }) => {
   await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
   await page.goto("/");
-  await expect(page.locator("[data-prototype-frame]")).toHaveCount(5);
-  await expect(page.locator("[data-home-motion]")).toHaveAttribute("data-home-motion", "scrubbed");
+  await expect(page.locator("[data-landing-scene]")).toHaveCount(5);
+  await expect(page.locator("[data-landing-scene]").nth(0)).toHaveAttribute("data-landing-scene", "hero");
+  await expect(page.locator("[data-landing-scene]").nth(4)).toHaveAttribute("data-landing-scene", "newsletter-footer");
   await expect(page.getByRole("heading", { name: "Built for those who train with intent." })).toBeVisible();
   await expect(page.locator("#engineered-title")).toBeAttached();
   await expect(page.locator("#philosophy-title")).toBeAttached();
@@ -15,40 +16,43 @@ test("home follows the prototype sequence and leads to the catalog", async ({ pa
   await expect(page.getByRole("heading", { name: "All Products" })).toBeVisible();
 });
 
-test("home presents the Figma logo intro on a first visit", async ({ page }) => {
+test("home includes an inert opening curtain on a first visit", async ({ page }) => {
   await page.addInitScript(() => window.sessionStorage.removeItem("delta-home-intro-seen"));
   await page.goto("/");
 
-  await expect(page.locator("[data-home-intro]")).toBeVisible();
-  await expect(page.locator("[data-home-intro] img")).toHaveAttribute("src", "/design-reference/assets/delta-logo.svg");
+  const curtain = page.locator("[data-opening-curtain]");
+  await expect(curtain).toBeAttached();
+  await expect(curtain).toHaveAttribute("aria-hidden", "true");
+  await expect(curtain.locator("img")).toHaveAttribute("src", "/design-reference/assets/delta-logo.svg");
 });
 
-test("desktop home scrubs continuously and wheel remains native", async ({ page }) => {
+test("desktop home renders the full sequence and wheel remains native", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
   await page.goto("/");
 
-  const home = page.getByRole("main", { name: "Delta landing scenes" });
-  const hero = page.locator('[data-prototype-frame="hero"]');
-  const engineered = page.locator('[data-prototype-frame="engineered"]');
+  const home = page.getByRole("main", { name: "Delta landing" });
+  const hero = page.locator('[data-landing-scene="hero"]');
+  const engineered = page.locator('[data-landing-scene="engineered"]');
 
-  await expect(home).toHaveAttribute("data-home-motion", "scrubbed");
-  await expect(hero).toHaveAttribute("data-frame-state", "settled");
+  await expect(home).toBeVisible();
+  await expect(hero).toBeVisible();
 
   await page.mouse.wheel(0, 240);
   await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.25, behavior: "auto" }));
-  await expect.poll(() => page.locator("[data-scroll-progress]").getAttribute("data-scroll-progress")).not.toBe("0");
-  await expect.poll(() => engineered.getAttribute("data-frame-state")).toBe("settled");
+  await expect(engineered).toBeAttached();
   await page.evaluate(() => window.scrollTo({ top: (document.documentElement.scrollHeight - window.innerHeight) * 0.02, behavior: "auto" }));
-  await expect.poll(() => hero.getAttribute("data-frame-state")).toBe("settled");
+  await expect(hero).toBeAttached();
 });
 
-test("mobile renders the prototype frames as normal flowing sections", async ({ page }) => {
+test("mobile renders the landing scenes as normal flowing sections", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 720 });
   await page.addInitScript(() => window.sessionStorage.setItem("delta-home-intro-seen", "true"));
   await page.goto("/");
-  await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
-  await expect(page.locator("[data-prototype-frame]")).toHaveCount(5);
+  const scenes = page.locator("[data-landing-scene]");
+  await expect(scenes).toHaveCount(5);
+  await expect(scenes.first()).not.toHaveCSS("position", "fixed");
+  await expect(scenes.first()).not.toHaveCSS("position", "sticky");
 });
 
 test("catalog search, filters, and sort stay in the URL", async ({ page }) => {
@@ -56,8 +60,10 @@ test("catalog search, filters, and sort stay in the URL", async ({ page }) => {
   // The field is debounced, so the URL follows typing without a submit button.
   await page.getByRole("searchbox", { name: "Search the catalog" }).fill("Airflow");
   await expect(page).toHaveURL(/q=Airflow/);
-  await page.getByRole("checkbox", { name: "M" }).check();
+  const mediumSize = page.getByRole("checkbox", { name: "M", exact: true });
+  await mediumSize.click();
   await expect(page).toHaveURL(/size=m/);
+  await expect(mediumSize).toBeChecked();
   await page.getByLabel("Sort products").selectOption("price-desc");
   await expect(page).toHaveURL(/sort=price-desc/);
   await expect(page.getByRole("link", { name: /Airflow Stringer Tank/ }).first()).toBeVisible();
@@ -87,17 +93,22 @@ test("catalog to product to cart drawer and cart page", async ({ page }) => {
 
 test("unavailable variant reports an accessible error", async ({ page }) => {
   await page.goto("/products/airflow-stringer-tank");
-  await expect(page.getByRole("radio", { name: "L unavailable" })).toBeDisabled();
+  await expect(page.getByRole("radio", { name: "XS unavailable" })).toHaveAttribute("aria-disabled", "true");
   await page.getByRole("button", { name: "ADD TO CART" }).click();
   await expect(page.getByText("Select a size to continue.")).toBeVisible();
 });
 
 test("variant radio groups support arrow-key selection", async ({ page }) => {
   await page.goto("/products/airflow-stringer-tank");
-  const medium = page.getByRole("radio", { name: "L", exact: true });
-  await medium.focus();
-  await medium.press("ArrowLeft");
-  await expect(page.getByRole("radio", { name: "S", exact: true })).toHaveAttribute("aria-checked", "true");
+  const sizeGroup = page.locator(".size-options");
+  const available = sizeGroup.locator('[role="radio"][aria-disabled="false"]');
+  const labels = await available.evaluateAll((radios) => radios.map((radio) => radio.getAttribute("aria-label") ?? ""));
+  const current = available.nth(0);
+  const nextLabel = labels[1];
+  expect(nextLabel).toBeTruthy();
+  await current.focus();
+  await current.press("ArrowRight");
+  await expect(sizeGroup.getByRole("radio", { name: nextLabel, exact: true })).toHaveAttribute("aria-checked", "true");
 });
 
 test("cart drawer traps focus, closes with Escape, and restores focus", async ({ page }) => {
@@ -155,8 +166,8 @@ test("tampered and unavailable persisted cart lines fail closed", async ({ page 
 test("reduced motion removes meaningful transition duration", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await expect(page.locator("[data-home-intro]")).toHaveCount(0);
-  await expect(page.locator(".prototype-viewport")).toHaveCSS("position", "static");
+  await expect(page.locator("[data-opening-curtain]")).toBeHidden();
+  await expect(page.locator("[data-landing-scene]").first()).not.toHaveCSS("position", "fixed");
   const duration = await page.getByRole("link", { name: "Explore Delta" }).evaluate((element) => getComputedStyle(element).transitionDuration);
   expect(Number.parseFloat(duration)).toBeLessThanOrEqual(0.001);
   await expect(page.locator(".landing-hero-poster")).toBeVisible();

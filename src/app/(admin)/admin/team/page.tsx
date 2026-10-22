@@ -38,7 +38,11 @@ export default async function AdminTeamPage() {
           <p className="admin-hint">Invite staff by email, then manage their role and access here. Owner-only.</p>
         </div>
       </div>
-      <TeamTable members={members} selfId={selfId} />
+      <TeamTable
+        members={members}
+        selfId={selfId}
+        emailInvitesEnabled={process.env.DELTA_INVITE_EMAIL_READY === "true"}
+      />
     </>
   );
 }

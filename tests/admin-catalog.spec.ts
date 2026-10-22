@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { join } from "node:path";
 
-import { withDb } from "./db";
+import { envValue, withDb } from "./db";
 import { OWNER_PASSWORD, signInAsOwner } from "./helpers";
 import type { Page } from "@playwright/test";
 
@@ -142,4 +143,44 @@ test("unpublishing hides a product from shoppers but keeps it editable", async (
 
   await page.goto("/shop");
   await expect(page.getByRole("link", { name: TITLE })).toHaveCount(0);
+});
+
+test("an owner uploads an image to Storage and attaches its public URL to a saved product", async ({ page }) => {
+  const handle = `${HANDLE}-upload-${Date.now()}`;
+  await signInAsOwner(page, "/admin/products/new");
+  await page.getByLabel("Title").fill("E2E Direct Upload Tee");
+  await page.getByLabel("Handle").fill(handle);
+  await page.getByLabel("Description").fill("A test product used to verify direct image upload and persistence.");
+  await page.getByLabel("Audience").selectOption("unisex");
+  await page.getByLabel("Garment type").selectOption("tops");
+  await page.getByLabel("SKU").first().fill(`${handle}-black`.toUpperCase());
+  await page.getByLabel("Size").first().fill("M");
+  await page.getByLabel("Colour").first().fill("Black");
+  await page.getByLabel("Price (PKR)").first().fill("3200");
+  await page.getByLabel("Stock", { exact: true }).first().fill("3");
+
+  await page.getByLabel("Upload image").setInputFiles(join(process.cwd(), "design-reference", "assets", "product-small-normal.png"));
+  await expect(page.getByRole("status")).toHaveText("Image uploaded. Add alt text, then save the product.", { timeout: 30_000 });
+  await page.getByLabel("Alt text").fill("Black tee uploaded directly from the admin");
+  const publicUrl = await page.getByLabel("Image URL").inputValue();
+  expect(publicUrl).toMatch(/\/product-images\/[^/]+\/[0-9a-f-]+\.png$/);
+
+  await page.getByRole("button", { name: "Save product" }).click();
+  await expect(page).toHaveURL(/\/admin\/products\/[0-9a-f-]{36}/, { timeout: 60_000 });
+  const persisted = await withDb(async (sql) => {
+    const [product] = await sql`select id from products where handle = ${handle}`;
+    const [media] = await sql`
+      select object_key, alt_text from media_references
+       where product_id = ${product.id} and status = 'active'
+    `;
+    const [storedObject] = await sql`
+      select object_path, public_url from product_image_objects
+       where tenant_id = ${envValue("DELTA_TENANT_ID")} and public_url = ${publicUrl}
+    `;
+    return { media, storedObject };
+  });
+  expect(persisted.media.object_key).toBe(publicUrl);
+  expect(persisted.media.alt_text).toBe("Black tee uploaded directly from the admin");
+  expect(persisted.storedObject.public_url).toBe(publicUrl);
+  expect(persisted.storedObject.object_path).toMatch(new RegExp(`^${envValue("DELTA_TENANT_ID")}/[0-9a-f-]+\\.png$`));
 });

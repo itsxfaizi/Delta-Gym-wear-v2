@@ -24,9 +24,12 @@ import { createDatabase, type Database } from "@/server/db";
 import { resolveCodStatus } from "@/server/ops/order-ops";
 import { mediaReferences, orderItems, orders, productVariants, products } from "@/server/db/schema";
 import { getCatalogTenantId } from "@/server/env";
+import { requireAdminPrincipal } from "./guard";
+import { ADMIN_ROLES } from "@/features/admin/schemas";
 
 /** Admin reads degrade to empty exactly like the storefront catalog does. */
-function adminDatabase(): { db: Database; tenantId: string } | null {
+async function adminDatabase(): Promise<{ db: Database; tenantId: string } | null> {
+  await requireAdminPrincipal(ADMIN_ROLES);
   if (!process.env.DATABASE_URL) return null;
   return { db: createDatabase(), tenantId: getCatalogTenantId() };
 }
@@ -45,7 +48,7 @@ export type AdminProductRow = {
 export async function listAdminProducts(
   filters: AdminProductFilters,
 ): Promise<{ rows: AdminProductRow[]; total: number; pageCount: number }> {
-  const scope = adminDatabase();
+  const scope = await adminDatabase();
   if (!scope) return { rows: [], total: 0, pageCount: 1 };
   const { db, tenantId } = scope;
 
@@ -108,7 +111,7 @@ const toFormRupees = (value: number | null) => value === null ? "" : (value / 10
 
 /** Loads a product already shaped as the form's default values. */
 export async function getAdminProductForm(productId: string): Promise<ProductFormValues | null> {
-  const scope = adminDatabase();
+  const scope = await adminDatabase();
   if (!scope) return null;
   const { db, tenantId } = scope;
 
@@ -206,7 +209,7 @@ async function toCodStatus(order: { id: string; status: OrderStatus }): Promise<
 
 /** `windowDays` is the trailing window the dashboard reports on; twice that is fetched so it has a prior period to compare against. */
 export async function getAdminDashboard(windowDays: number = DASHBOARD_WINDOW_DAYS): Promise<AdminDashboard> {
-  const scope = adminDatabase();
+  const scope = await adminDatabase();
   if (!scope) return { ...EMPTY_DASHBOARD, windowDays };
   const { db, tenantId } = scope;
 

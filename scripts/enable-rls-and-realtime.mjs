@@ -23,7 +23,7 @@ const sql = postgres(process.env.DB_URL, { ssl: "require", max: 1, connect_timeo
 const V2_TABLES = [
   "tenants", "memberships", "products", "product_variants", "media_references",
   "product_revisions", "audit_events", "customers", "addresses", "carts",
-  "cart_items", "orders", "order_items",
+  "cart_items", "orders", "order_items", "promo_codes",
 ];
 
 // Realtime is only useful where the UI reacts to changes.
@@ -34,13 +34,26 @@ for (const table of V2_TABLES) {
 }
 console.log(`RLS enabled on ${V2_TABLES.length} v2 tables (deny-by-default for the anon key)`);
 
+// Keep the SECURITY DEFINER helper out of Supabase's exposed public API schema.
+await sql.unsafe("CREATE SCHEMA IF NOT EXISTS delta_private");
+await sql.unsafe("REVOKE ALL ON SCHEMA delta_private FROM PUBLIC, anon");
+await sql.unsafe("GRANT USAGE ON SCHEMA delta_private TO authenticated");
+await sql.unsafe(`
+  DO $$ BEGIN
+    IF to_regprocedure('public.is_active_tenant_member(uuid)') IS NOT NULL
+       AND to_regprocedure('delta_private.is_active_tenant_member(uuid)') IS NULL THEN
+      ALTER FUNCTION public.is_active_tenant_member(uuid) SET SCHEMA delta_private;
+    END IF;
+  END $$;
+`);
+
 // One helper instead of repeating the membership lookup in every policy.
 await sql.unsafe(`
-  CREATE OR REPLACE FUNCTION public.is_active_tenant_member(target_tenant uuid)
+  CREATE OR REPLACE FUNCTION delta_private.is_active_tenant_member(target_tenant uuid)
   RETURNS boolean
   LANGUAGE sql
   SECURITY DEFINER
-  SET search_path = public
+  SET search_path = ''
   AS $$
     SELECT EXISTS (
       SELECT 1 FROM public.memberships m
@@ -50,6 +63,8 @@ await sql.unsafe(`
     );
   $$;
 `);
+await sql.unsafe("REVOKE ALL ON FUNCTION delta_private.is_active_tenant_member(uuid) FROM PUBLIC, anon");
+await sql.unsafe("GRANT EXECUTE ON FUNCTION delta_private.is_active_tenant_member(uuid) TO authenticated");
 console.log("helper is_active_tenant_member() created");
 
 // Staff read access, so Realtime can deliver rows to a signed-in admin.
@@ -58,7 +73,7 @@ for (const table of ["orders", "order_items", "customers", "products", "product_
   await sql.unsafe(`
     CREATE POLICY ${table}_staff_read ON public.${table}
     FOR SELECT TO authenticated
-    USING (public.is_active_tenant_member(tenant_id));
+    USING (delta_private.is_active_tenant_member(tenant_id));
   `);
 }
 console.log("staff SELECT policies created (authenticated + active membership only)");

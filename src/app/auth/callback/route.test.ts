@@ -4,9 +4,9 @@ import type { NextRequest } from "next/server";
 
 jest.mock("server-only", () => ({}));
 jest.mock("@/server/auth/supabase", () => ({ createSupabaseServerClient: jest.fn() }));
-jest.mock("@/server/admin/team", () => ({ activateInvitedMembership: jest.fn() }));
+jest.mock("@/server/admin/team", () => ({ hasInvitedMembership: jest.fn() }));
 
-import { activateInvitedMembership } from "@/server/admin/team";
+import { hasInvitedMembership } from "@/server/admin/team";
 import { createSupabaseServerClient } from "@/server/auth/supabase";
 
 import { GET } from "./route";
@@ -30,28 +30,36 @@ describe("auth callback staff invitation", () => {
     getUser.mockResolvedValue({ data: { user: { id: "123e4567-e89b-42d3-a456-426614174000" } }, error: null });
   });
 
-  it("requires a verified invite token before activating membership", async () => {
-    jest.mocked(activateInvitedMembership).mockResolvedValue(true);
+  it("requires a verified invite and sends staff to password setup without granting access", async () => {
+    jest.mocked(hasInvitedMembership).mockResolvedValue(true);
 
     const response = await GET(request("/auth/callback?token_hash=one-time&type=invite&next=%2Freset-password%3Fnext%3D%2Fadmin"));
 
     expect(verifyOtp).toHaveBeenCalledWith({ token_hash: "one-time", type: "invite" });
-    expect(activateInvitedMembership).toHaveBeenCalledWith("123e4567-e89b-42d3-a456-426614174000");
+    expect(hasInvitedMembership).toHaveBeenCalledWith("123e4567-e89b-42d3-a456-426614174000");
     expect(response.headers.get("location")).toBe("https://delta.example/reset-password?next=/admin");
   });
 
-  it("does not activate membership for a normal code exchange", async () => {
+  it("does not look up an invite for a normal code exchange", async () => {
     await GET(request("/auth/callback?code=recovery-code&type=invite&next=%2Freset-password"));
 
     expect(exchangeCodeForSession).toHaveBeenCalledWith("recovery-code");
-    expect(activateInvitedMembership).not.toHaveBeenCalled();
+    expect(hasInvitedMembership).not.toHaveBeenCalled();
   });
 
-  it("does not continue to onboarding when no invited membership was activated", async () => {
-    jest.mocked(activateInvitedMembership).mockResolvedValue(false);
+  it("does not continue to onboarding when no invited membership exists", async () => {
+    jest.mocked(hasInvitedMembership).mockResolvedValue(false);
 
     const response = await GET(request("/auth/callback?token_hash=one-time&type=invite&next=%2Fadmin"));
 
     expect(response.headers.get("location")).toBe("https://delta.example/login?error=invite");
+  });
+
+  it("cannot use a valid invite token to skip password setup", async () => {
+    jest.mocked(hasInvitedMembership).mockResolvedValue(true);
+
+    const response = await GET(request("/auth/callback?token_hash=one-time&type=invite&next=%2Fadmin"));
+
+    expect(response.headers.get("location")).toBe("https://delta.example/reset-password?next=/admin");
   });
 });

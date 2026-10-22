@@ -16,6 +16,7 @@ import {
 } from "@/features/admin/team";
 import {
   inviteMemberAction,
+  createInvitationLinkAction,
   changeMemberRoleAction,
   setMemberStatusAction,
 } from "@/features/admin/team-actions";
@@ -33,10 +34,17 @@ const ROLE_NOTES: Record<(typeof ADMIN_ROLES)[number], string> = {
 /* The mockup shows the raw role key everywhere, matching the reference panel. */
 const ROLE_OPTIONS = ADMIN_ROLES.map((role) => ({ value: role, label: role }));
 
-export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; selfId: string }) {
+export function TeamTable({ members, selfId, emailInvitesEnabled = false }: {
+  members: readonly MemberRow[];
+  selfId: string;
+  emailInvitesEnabled?: boolean;
+}) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState("");
 
   const {
     register,
@@ -49,7 +57,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
     defaultValues: { email: "", role: "auditor" },
   });
 
-  function run(label: string, action: () => Promise<{ ok: boolean; message?: string }>, authUserId: string) {
+  function run(label: string, action: () => Promise<{ ok: boolean; message?: string }>, authUserId: string, clearLinkOnSuccess = false) {
     setBusyId(authUserId);
     startTransition(async () => {
       try {
@@ -58,6 +66,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
           toast.error(result.message ?? "That did not work.");
           return;
         }
+        if (clearLinkOnSuccess) clearInvitationLink();
         toast.success(label);
         router.refresh();
       } catch {
@@ -68,25 +77,47 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
     });
   }
 
-  async function onInvite(values: InviteMemberInput) {
+  function clearInvitationLink() {
+    setInviteUrl(null);
+    setCopyStatus("");
+  }
+
+  async function onInvite(values: InviteMemberInput, delivery: "link" | "email" = "link") {
+    clearInvitationLink();
+    setInviteError(null);
     try {
-      const result = await inviteMemberAction(values);
+      const result = await (delivery === "link" ? createInvitationLinkAction(values) : inviteMemberAction(values));
       if (!result.ok) {
-        toast.error(result.message ?? "That did not work.");
+        setInviteError(result.message ?? "The invitation could not be created. Please try again.");
         return;
       }
-      toast.success("Invitation sent. Access starts after they accept and choose a password.");
+      if ("inviteUrl" in result && typeof result.inviteUrl === "string") {
+        setInviteUrl(result.inviteUrl);
+        toast.success("Invitation link created.");
+      } else {
+        toast.success("Invitation sent. Access starts after they accept and choose a password.");
+      }
       reset();
       router.refresh();
     } catch {
-      toast.error("The invitation could not be sent. Check your connection and try again.");
+      setInviteError("The invitation could not be created. Check your connection and try again.");
+    }
+  }
+
+  async function copyInvitationLink() {
+    if (!inviteUrl) return;
+    try {
+      await navigator.clipboard.writeText(inviteUrl);
+      setCopyStatus("Link copied.");
+    } catch {
+      setCopyStatus("Copy is unavailable. Select the invitation link and copy it manually.");
     }
   }
 
   return (
     <>
       <div className="admin-columns team-top">
-        <form className="admin-panel team-add" onSubmit={handleSubmit(onInvite)} noValidate>
+        <form className="admin-panel team-add" onSubmit={handleSubmit((values) => onInvite(values))} onChange={clearInvitationLink} noValidate aria-busy={isSubmitting}>
           <h2>Invite a team member</h2>
           <div className="admin-field">
             <label htmlFor="member-email">Email address</label>
@@ -94,12 +125,13 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
               id="member-email"
               type="email"
               autoComplete="email"
+              disabled={isSubmitting}
               placeholder="teammate@example.com"
               aria-invalid={errors.email ? "true" : "false"}
               aria-describedby={errors.email ? "member-email-error" : "member-email-help"}
               {...register("email")}
             />
-            <span className="admin-hint" id="member-email-help">They will receive a link to accept and set a password.</span>
+            <span className="admin-hint" id="member-email-help">Create a private invitation link for this email address.</span>
             {errors.email ? (
               <span className="admin-error" id="member-email-error" role="alert">
                 {errors.email.message}
@@ -117,16 +149,31 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                   value={field.value}
                   options={ROLE_OPTIONS}
                   disabled={isSubmitting}
-                  onValueChange={field.onChange}
+                  onValueChange={(value) => { clearInvitationLink(); field.onChange(value); }}
                 />
               )}
             />
           </div>
           <div className="admin-actions">
             <button className="admin-button admin-button--primary team-submit" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Sending…" : "Send invitation"}
+              {isSubmitting ? "Creating…" : "Create invitation link"}
             </button>
+            <button className="admin-button" type="button" disabled={isSubmitting || !emailInvitesEnabled} onClick={handleSubmit((values) => onInvite(values, "email"))}>Send invitation email</button>
           </div>
+          {!emailInvitesEnabled ? <p className="admin-hint">Email invitations are disabled until delivery is configured. Create a private link and share it with the staff member.</p> : null}
+          {inviteError ? <p className="admin-error" role="alert">{inviteError}</p> : null}
+          {inviteUrl ? (
+            <div className="admin-field">
+              <label htmlFor="staff-invitation-link">Staff invitation link</label>
+              <input id="staff-invitation-link" type="text" value={inviteUrl} readOnly autoComplete="off" spellCheck={false} aria-describedby="staff-invitation-help" onFocus={(event) => event.currentTarget.select()} />
+              <p className="admin-hint" id="staff-invitation-help">Share this one-time link privately with this staff member. They choose a password and set up an authenticator.</p>
+              <div className="admin-actions">
+                <button className="admin-button" type="button" onClick={copyInvitationLink}>Copy link</button>
+                <button className="admin-button" type="button" onClick={clearInvitationLink}>Dismiss link</button>
+              </div>
+              <p className="admin-hint" role="status">{copyStatus}</p>
+            </div>
+          ) : null}
         </form>
 
         <section className="admin-panel" aria-labelledby="team-roles">
@@ -177,7 +224,7 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                           label={`Role for ${member.email ?? member.authUserId}`}
                           value={member.role}
                           options={ROLE_OPTIONS}
-                          disabled={busy || lastOwner}
+                          disabled={busy || lastOwner || member.status === "cancelled"}
                           onValueChange={(role) =>
                             run("Role updated.", () => changeMemberRoleAction({ authUserId: member.authUserId, role }), member.authUserId)
                           }
@@ -185,27 +232,28 @@ export function TeamTable({ members, selfId }: { members: readonly MemberRow[]; 
                       </td>
                       <td data-label="Status">
                         <span className="admin-status team-status" data-state={member.status}>
-                          {member.status === "active" ? "Active" : member.status === "invited" ? "Invited" : "Revoked"}
+                          {member.status === "active" ? "Active" : member.status === "invited" ? "Invited" : member.status === "cancelled" ? "Cancelled" : "Revoked"}
                         </span>
                       </td>
                       <td className="team-actions" data-label="Actions">
                         <button
-                          className={`admin-button team-button${member.status === "active" ? " admin-button--danger" : ""}`}
+                          className={`admin-button team-button${member.status === "active" || member.status === "invited" ? " admin-button--danger" : ""}`}
                           type="button"
-                          disabled={busy || lastOwner || member.status === "invited"}
+                          disabled={busy || lastOwner || member.status === "cancelled"}
                           onClick={() =>
                             run(
-                              member.status === "active" ? "Access revoked." : "Access restored.",
+                              member.status === "invited" ? "Invitation cancelled." : member.status === "active" ? "Access revoked." : "Access restored.",
                               () =>
                                 setMemberStatusAction({
                                   authUserId: member.authUserId,
-                                  status: member.status === "active" ? "suspended" : "active",
+                                  status: member.status === "suspended" ? "active" : "suspended",
                                 }),
                               member.authUserId,
+                              member.status === "invited",
                             )
                           }
                         >
-                          {busy ? "Working…" : member.status === "invited" ? "Awaiting acceptance" : member.status === "active" ? "Revoke" : "Restore"}
+                          {busy ? "Working…" : member.status === "cancelled" ? "Invitation cancelled" : member.status === "invited" ? "Cancel invitation" : member.status === "active" ? "Revoke" : "Restore"}
                         </button>
                         {lastOwner ? (
                           <p className="admin-hint">The last active owner cannot be changed.</p>

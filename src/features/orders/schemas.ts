@@ -42,7 +42,10 @@ export const checkoutInputSchema = z.object({
   contactPhone: phoneSchema,
   shippingAddress: addressSchema,
   notes: z.string().trim().max(1000).nullish().transform((value) => value || null),
-  promoCode: promotionCodeSchema.nullish().transform((value) => value || null),
+  // Optional browser text fields submit "". Normalize absence before applying
+  // the strict code grammar, which must still reject malformed nonempty input.
+  promoCode: z.string().trim().nullish().transform((value) => value || null)
+    .pipe(promotionCodeSchema.nullable()),
   lines: z.array(checkoutLineSchema).min(1).max(50),
 });
 

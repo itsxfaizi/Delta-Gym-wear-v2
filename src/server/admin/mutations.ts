@@ -1,13 +1,13 @@
 import "server-only";
 
-import { and, eq, notInArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { CREATABLE_STATUSES, PRODUCT_EDITOR_ROLES, PRODUCT_PUBLISHER_ROLES, hasImageWithoutAltText, productFormSchema, type ProductFormInput, type ProductStatus } from "@/features/admin/schemas";
 import { ORDER_PRICING } from "@/features/orders/orders";
 import { canTransitionProductStatus } from "@/features/catalog/types";
 import type { AuthenticatedPrincipal } from "@/server/authorization";
 import { createDatabase, type Database } from "@/server/db";
-import { auditEvents, mediaReferences, productRevisions, productVariants, products } from "@/server/db/schema";
+import { auditEvents, mediaReferences, productImageObjects, productRevisions, productVariants, products } from "@/server/db/schema";
 import { requireAdminPrincipal } from "./guard";
 
 export class AdminDatabaseUnavailableError extends Error {
@@ -162,6 +162,20 @@ async function syncVariants(tx: Tx, tenantId: string, productId: string, parsed:
 /** Media has no dependents, so the form is the whole truth for it. */
 async function syncMedia(tx: Tx, tenantId: string, productId: string, parsed: ProductFormInput) {
   const keys = parsed.media.map((item) => item.objectKey);
+  const previous = await tx.select({ objectKey: mediaReferences.objectKey }).from(mediaReferences)
+    .where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.productId, productId)));
+  const touchedUrls = [...new Set([...previous.map((item) => item.objectKey), ...keys])];
+  // Cleanup locks the same lifecycle row before calling Storage. A concurrent
+  // editor waits, then refuses to attach an image already removed from Storage.
+  const tracked = touchedUrls.length ? await tx
+    .select({ objectPath: productImageObjects.objectPath, publicUrl: productImageObjects.publicUrl, deletedAt: productImageObjects.deletedAt })
+    .from(productImageObjects)
+    .where(and(eq(productImageObjects.tenantId, tenantId), inArray(productImageObjects.publicUrl, touchedUrls)))
+    .orderBy(asc(productImageObjects.objectPath))
+    .for("update") : [];
+  if (tracked.some((image) => image.deletedAt && keys.includes(image.publicUrl))) {
+    throw new Error("A product image has expired. Upload it again before saving.");
+  }
 
   await tx
     .delete(mediaReferences)
@@ -181,6 +195,15 @@ async function syncMedia(tx: Tx, tenantId: string, productId: string, parsed: Pr
         target: [mediaReferences.tenantId, mediaReferences.objectKey],
         set: { productId, altText: item.altText, sortOrder, updatedAt: new Date() },
       });
+  }
+
+  for (const image of tracked) {
+    const [reference] = await tx.select({ id: mediaReferences.id }).from(mediaReferences)
+      .where(and(eq(mediaReferences.tenantId, tenantId), eq(mediaReferences.objectKey, image.publicUrl)))
+      .limit(1);
+    await tx.update(productImageObjects)
+      .set({ unreferencedAt: reference ? null : new Date() })
+      .where(and(eq(productImageObjects.tenantId, tenantId), eq(productImageObjects.objectPath, image.objectPath)));
   }
 }
 
